@@ -60,9 +60,10 @@ class LegalAgentFR:
             tools=self.tools,
             verbose=True,
             max_iterations=config.AGENT_MAX_ITERATIONS,
-            handle_parsing_errors=True,
+            handle_parsing_errors=False,
             memory=self.memory
         )
+        
         print(f"Agent Juridique (LegalAgentFR) initialisé en français avec {len(self.tools)} outils.")
 
     def run(self, query: str) -> Dict[str, Any]:
