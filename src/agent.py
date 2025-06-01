@@ -60,7 +60,7 @@ class LegalAgentFR:
             tools=self.tools,
             verbose=True,
             max_iterations=config.AGENT_MAX_ITERATIONS,
-            handle_parsing_errors=False,
+            handle_parsing_errors=True,
             memory=self.memory
         )
         

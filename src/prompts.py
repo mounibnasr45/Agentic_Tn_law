@@ -19,17 +19,14 @@ Action Input: L'entrée de l'outil.
 Observation: Le résultat de l'outil.
 Lorsque vous avez une réponse à la question de l'utilisateur OU si vous n'avez pas besoin d'utiliser un outil, vous DEVEZ répondre au format suivant :
 Pensée: Ai-je besoin d'utiliser un outil ? Non
-Réponse Finale: [votre réponse finale et détaillée ici]
+Final Answer: [votre réponse finale et détaillée ici]
 Commencez !
 
 Question: {input}
 Pensée:{agent_scratchpad}
-""" # Note: I added a colon after "Pensée" for {agent_scratchpad} as it's common.
-    # Or, if the agent_scratchpad already contains "Thought: ...", then just {agent_scratchpad} is fine.
-    # The default ReAct agent formatter usually produces a string that starts with the next thought or continues the chain.
+""" # Note: Changed "Réponse Finale:" to "Final Answer:"
 
 # Prompt pour agent conversationnel ReAct
-# THIS IS THE ONE WE NEED TO CHANGE how agent_scratchpad is handled.
 CONVERSATIONAL_REACT_PROMPT = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate.from_template(
@@ -43,11 +40,8 @@ CONVERSATIONAL_REACT_PROMPT = ChatPromptTemplate.from_messages(
             "... (La séquence Pensée/Action/Action Input/Observation peut se répéter N fois)\n"
             "Lorsque vous avez une réponse à la question de l'utilisateur OU si vous n'avez pas besoin d'utiliser un outil, vous DEVEZ répondre au format suivant :\n"
             "Pensée: Ai-je besoin d'utiliser un outil ? Non\n"
-            "Réponse Finale: [votre réponse finale et détaillée ici]\n"
+            "Final Answer: [votre réponse finale et détaillée ici]\n" # MODIFIED THIS LINE
             "Commencez !"
-            # The {agent_scratchpad} will be appended to the HumanMessage or as part of a specific agent message if needed.
-            # For ReAct, the scratchpad is often part of the "current thought process" that leads to the next action or final answer.
-            # It's part of what the LLM sees to continue its reasoning.
         ),
         MessagesPlaceholder(variable_name="chat_history"), # For conversational memory
         HumanMessagePromptTemplate.from_template(
@@ -55,7 +49,5 @@ CONVERSATIONAL_REACT_PROMPT = ChatPromptTemplate.from_messages(
             "Pensées et actions précédentes (si applicable):\n" # This is where the string scratchpad can go
             "{agent_scratchpad}"
         ),
-        # REMOVE the explicit MessagesPlaceholder for agent_scratchpad if it's a string
-        # MessagesPlaceholder(variable_name="agent_scratchpad"),
     ]
 )
