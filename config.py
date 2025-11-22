@@ -14,8 +14,9 @@ SUMMARY_LLM_MODEL = os.getenv("SUMMARY_LLM_MODEL", "mistralai/mistral-7b-instruc
 EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 # --- Paths ---
-DOCUMENTS_DIR = "documents"
-VECTOR_STORE_DIR = "vector_store"
+# Allow overriding paths via environment variables for Docker/Cloud deployment
+DOCUMENTS_DIR = os.getenv("DOCUMENTS_DIR", "documents")
+VECTOR_STORE_DIR = os.getenv("VECTOR_STORE_DIR", "vector_store")
 CHROMA_DB_DIR = os.path.join(VECTOR_STORE_DIR, "chroma_db")
 FAISS_INDEX_PATH = os.path.join(VECTOR_STORE_DIR, "faiss_index.bin")
 
