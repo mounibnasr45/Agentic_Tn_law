@@ -10,6 +10,7 @@ langchain
 langchain-community
 langchain-core
 langchain-openai
+langchain-text-splitters
 requests
 streamlit
 duckduckgo-search
