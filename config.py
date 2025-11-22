@@ -26,7 +26,7 @@ DEFAULT_DOCUMENT_FILENAMES = ["Constitution_fr.pdf", "penal_code.pdf"]
 # --- Retriever Settings ---
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 150
-TOP_K_RETRIEVER = 5
+TOP_K_RETRIEVER = 20
 HYBRID_WEIGHT_BM25 = 0.4
 
 # --- Agent Settings ---
