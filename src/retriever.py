@@ -11,16 +11,32 @@ from typing import List, Dict, Any
 
 import config
 
-# Initialize embedding model globally (or pass as argument)
-print("Loading embedding model for retriever...")
-embedding_function_transformers = SentenceTransformer(config.EMBEDDING_MODEL_NAME)
-# Langchain compatible embedding function
-lc_embedding_function = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL_NAME)
-print("Embedding model loaded.")
+# Global variables for lazy loading
+embedding_function_transformers = None
+lc_embedding_function = None
+
+def load_embedding_models():
+    """Lazy load embedding models to avoid blocking module import."""
+    global embedding_function_transformers, lc_embedding_function
+    
+    if embedding_function_transformers is None:
+        print("Loading embedding model for retriever...")
+        embedding_function_transformers = SentenceTransformer(config.EMBEDDING_MODEL_NAME)
+        print("SentenceTransformer loaded.")
+        
+    if lc_embedding_function is None:
+        print("Loading LangChain embedding model...")
+        lc_embedding_function = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL_NAME)
+        print("HuggingFaceEmbeddings loaded.")
+    
+    return embedding_function_transformers, lc_embedding_function
 
 
 class HybridRetriever:
     def __init__(self, documents: List[Document] = None, persist: bool = True):
+        # Ensure models are loaded when an instance is created
+        load_embedding_models()
+        
         self.documents: List[Document] = []
         self.document_texts: List[str] = []
         self.document_metadatas: List[Dict[str, Any]] = []

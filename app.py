@@ -74,7 +74,9 @@ with st.sidebar:
     if not is_retriever_ready_display:
          st.toast("Le récupérateur de documents n'est pas prêt. Veuillez utiliser le bouton ci-dessus.", icon="ℹ️")
 
-retriever_instance = get_hybrid_retriever()
+with st.spinner("Chargement des modèles d'IA et initialisation du système..."):
+    retriever_instance = get_hybrid_retriever()
+    
 is_retriever_currently_initialized = retriever_instance.is_initialized
 
 if is_retriever_currently_initialized:
