@@ -1,73 +1,80 @@
 # src/agent.py
+import sys
+
+# Deterministic import strategy for LangChain agents
 try:
-    from langchain.agents import create_react_agent, AgentExecutor
-except ImportError:
-    from langchain.agents import AgentExecutor
+    # Try the modern path (LangChain 0.2/0.3+)
     from langchain.agents.react.agent import create_react_agent
+    from langchain.agents.agent import AgentExecutor
+    USE_LEGACY_AGENT = False
+except ImportError:
+    try:
+        # Try the intermediate path (LangChain 0.1.x)
+        from langchain.agents import create_react_agent, AgentExecutor
+        USE_LEGACY_AGENT = False
+    except ImportError:
+        # Fallback to legacy path (LangChain < 0.1.0)
+        from langchain.agents import initialize_agent, AgentType, AgentExecutor
+        USE_LEGACY_AGENT = True
+        print("WARNING: Using legacy initialize_agent due to import failures.")
 
 from langchain.memory import ConversationBufferWindowMemory
-from langchain.tools.render import render_text_description # Import this
+from langchain.tools.render import render_text_description 
 
 from src.llm_interface import get_llm
 from src.tools import get_all_tools
 from src.retriever import HybridRetriever
-from src.prompts import CONVERSATIONAL_REACT_PROMPT # This is your base prompt template
+from src.prompts import CONVERSATIONAL_REACT_PROMPT 
 import config
 from typing import Dict, Any
 
 class LegalAgentFR:
     def __init__(self, retriever: HybridRetriever):
         self.llm = get_llm(model_name=config.AGENT_LLM_MODEL)
-        self.tools = get_all_tools(retriever) # List of Tool objects
+        self.tools = get_all_tools(retriever) 
         
-        # 1. Prepare the prompt with tool information
-        # The CONVERSATIONAL_REACT_PROMPT already has a placeholder for tool_names.
-        # Let's ensure the prompt is formatted with the actual tool names and descriptions
-        # if create_react_agent doesn't do it automatically with CONVERSATIONAL_REACT_PROMPT.
-
-        # The create_react_agent function *should* handle injecting tool names and descriptions
-        # if the prompt has the correct placeholders.
-        # The error "Prompt missing required variables: {'tools'}" suggests that the
-        # CONVERSATIONAL_REACT_PROMPT, when passed to create_react_agent, isn't being
-        # fully resolved with the 'tools' variable by the function itself.
-
-        # Let's ensure the base prompt template (REACT_AGENT_SYSTEM_PROMPT)
-        # also has a placeholder for the full tool descriptions if needed, or simplify.
-        # The default ReAct prompt in LangChain often has a section like:
-        # "You have access to the following tools:\n{tools}\n\nUse the following format:..."
-
-        # Our current REACT_AGENT_SYSTEM_PROMPT in src/prompts.py has:
-        # "Action: L'outil à utiliser, parmi [{tool_names}]."
-        # It does *not* have a placeholder for the full {tools} descriptions.
-        # This is likely the core issue.
-
-        # We need to modify REACT_AGENT_SYSTEM_PROMPT in src/prompts.py
-
-        self.agent_prompt = CONVERSATIONAL_REACT_PROMPT # This is a ChatPromptTemplate
+        self.agent_prompt = CONVERSATIONAL_REACT_PROMPT 
 
         # 2. Create the agent instance
-        agent_instance = create_react_agent(
-            llm=self.llm,
-            tools=self.tools, # Pass the list of Tool objects
-            prompt=self.agent_prompt # Pass the ChatPromptTemplate
-        )
+        if not USE_LEGACY_AGENT:
+            # Modern approach
+            agent_instance = create_react_agent(
+                llm=self.llm,
+                tools=self.tools, 
+                prompt=self.agent_prompt 
+            )
+            
+            self.memory = ConversationBufferWindowMemory(
+                k=5,
+                memory_key="chat_history",
+                return_messages=True
+            )
 
-        # Initialize memory
-        self.memory = ConversationBufferWindowMemory(
-            k=5,
-            memory_key="chat_history",
-            return_messages=True
-        )
-
-        # Create the Agent Executor
-        self.agent_executor = AgentExecutor(
-            agent=agent_instance,
-            tools=self.tools,
-            verbose=True,
-            max_iterations=config.AGENT_MAX_ITERATIONS,
-            handle_parsing_errors=True,
-            memory=self.memory
-        )
+            self.agent_executor = AgentExecutor(
+                agent=agent_instance,
+                tools=self.tools,
+                verbose=True,
+                max_iterations=config.AGENT_MAX_ITERATIONS,
+                handle_parsing_errors=True,
+                memory=self.memory
+            )
+        else:
+            # Legacy approach (fallback)
+            self.memory = ConversationBufferWindowMemory(
+                k=5,
+                memory_key="chat_history",
+                return_messages=True
+            )
+            
+            self.agent_executor = initialize_agent(
+                tools=self.tools,
+                llm=self.llm,
+                agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION, # Or ZERO_SHOT_REACT_DESCRIPTION
+                verbose=True,
+                max_iterations=config.AGENT_MAX_ITERATIONS,
+                handle_parsing_errors=True,
+                memory=self.memory
+            )
         
         print(f"Agent Juridique (LegalAgentFR) initialisé en français avec {len(self.tools)} outils.")
 
