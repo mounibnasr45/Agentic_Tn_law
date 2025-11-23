@@ -1,7 +1,7 @@
 # src/tools.py
 from langchain.tools import Tool
 from langchain_community.tools import DuckDuckGoSearchRun
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any # Keep Dict, Any if used by other tools
 
 from src.retriever import HybridRetriever
