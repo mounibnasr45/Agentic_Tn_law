@@ -15,8 +15,8 @@ def get_openaicompatible_llm(model_name: str, api_key: str, base_url: str, tempe
         temperature=temperature,
         max_tokens=max_tokens,
         default_headers={
-            "HTTP-Referer": "http://localhost", # Adapter si déployé
-            "X-Title": "Agent Juridique Tunisien" # Nom de votre application
+            "HTTP-Referer": "https://agentic-tn-law.onrender.com", # Updated to your deployed URL
+            "X-Title": "Agent Juridique Tunisien" 
         }
     )
 
