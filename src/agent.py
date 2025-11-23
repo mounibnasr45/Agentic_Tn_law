@@ -1,5 +1,10 @@
 # src/agent.py
-from langchain.agents import create_react_agent, AgentExecutor
+try:
+    from langchain.agents import create_react_agent, AgentExecutor
+except ImportError:
+    from langchain.agents import AgentExecutor
+    from langchain.agents.react.agent import create_react_agent
+
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.tools.render import render_text_description # Import this
 
