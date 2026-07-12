@@ -1,6 +1,5 @@
 import requests
 from langchain_openai import ChatOpenAI
-from langchain_core.outputs import LLMResult
 
 import config
 

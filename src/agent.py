@@ -1,5 +1,4 @@
 # src/agent.py
-import sys
 
 # Deterministic import strategy for LangChain agents
 try:
@@ -19,7 +18,6 @@ except ImportError:
         print("WARNING: Using legacy initialize_agent due to import failures.")
 
 from langchain.memory import ConversationBufferWindowMemory
-from langchain.tools.render import render_text_description 
 
 from src.llm_interface import get_llm
 from src.tools import get_all_tools

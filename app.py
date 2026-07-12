@@ -6,7 +6,6 @@ import config
 from src.document_processor import load_specific_documents, split_documents_into_chunks
 from src.retriever import HybridRetriever
 from src.agent import LegalAgentFR # This import now triggers the chain leading to the error
-from langchain_core.documents import Document 
 
 st.set_page_config(page_title="🇹🇳 Agent Juridique Tunisien", layout="wide")
 
@@ -54,7 +53,7 @@ with st.sidebar:
         if missing_docs:
             st.error(f"Documents manquants dans '{config.DOCUMENTS_DIR}': {', '.join(missing_docs)}. Veuillez les ajouter.")
         else:
-            with st.spinner(f"Traitement de la Constitution et du Code Pénal en cours..."):
+            with st.spinner("Traitement de la Constitution et du Code Pénal en cours..."):
                 raw_docs = load_specific_documents()
                 if raw_docs:
                     chunked_docs = split_documents_into_chunks(raw_docs)

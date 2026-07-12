@@ -2,10 +2,9 @@
 from langchain.tools import Tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any # Keep Dict, Any if used by other tools
+from typing import List # Keep Dict, Any if used by other tools
 
 from src.retriever import HybridRetriever
-from src.llm_interface import get_llm
 import config
 
 # --- Schémas d'entrée pour les outils ---
