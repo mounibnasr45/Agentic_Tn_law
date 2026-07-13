@@ -1,11 +1,29 @@
+# Secrets — never commit. Use .env.example as the template.
+.env
+.env.*
+!.env.example
+
+# Python bytecode / build artefacts
 __pycache__/
 *.py[cod]
 *$py.class
-.env
+*.egg-info/
+build/
+dist/
+
+# Virtualenvs
 .venv
-env/
 venv/
+env/
+
+# Generated indices and local state.
+# NOTE: documents/ is deliberately NOT ignored — the Constitution and Penal Code
+# are the corpus and are tracked until they move to object storage.
 vector_store/
-documents/
 LOG_FILE
+.coverage
+coverage.xml
+.pytest_cache/
+.ruff_cache/
+
 .DS_Store

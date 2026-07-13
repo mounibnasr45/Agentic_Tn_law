@@ -10,6 +10,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from typing import List, Dict, Any
 
 import config
+from src.scoring import combine_scores, normalize_bm25, normalize_semantic, top_k_indices
 
 # Global variables for lazy loading
 embedding_function_transformers = None
@@ -190,48 +191,29 @@ class HybridRetriever:
         # BM25 retrieval
         tokenized_query = query.lower().split()
         if self.bm25:
-            bm25_scores = self.bm25.get_scores(tokenized_query)
-            # Normalize BM25 scores (0 to 1)
-            min_bm25, max_bm25 = np.min(bm25_scores), np.max(bm25_scores)
-            if max_bm25 == min_bm25: # Avoid division by zero if all scores are same
-                 normalized_bm25_scores = np.zeros_like(bm25_scores) if max_bm25 == 0 else np.ones_like(bm25_scores)
-            else:
-                normalized_bm25_scores = (bm25_scores - min_bm25) / (max_bm25 - min_bm25)
+            normalized_bm25_scores = normalize_bm25(self.bm25.get_scores(tokenized_query))
         else:
             print("BM25 index not available for hybrid search.")
             normalized_bm25_scores = np.zeros(len(self.document_texts))
 
-
         # Semantic retrieval (cosine similarity with pre-computed embeddings)
         if self.semantic_embeddings is not None and self.semantic_embeddings.shape[0] > 0:
             semantic_scores = cosine_similarity([query_embedding], self.semantic_embeddings)[0]
-            # Cosine similarity is already in a good range (-1 to 1, typically 0 to 1 for positive correlations)
-            # We can scale it to 0-1 if needed: (semantic_scores + 1) / 2
-            # For simplicity, let's assume they are mostly positive and use as is or clip.
-            normalized_semantic_scores = np.clip(semantic_scores, 0, 1)
+            normalized_semantic_scores = normalize_semantic(semantic_scores)
         else:
             print("Semantic embeddings not available for hybrid search.")
             normalized_semantic_scores = np.zeros(len(self.document_texts))
 
-        # Combine scores
-        # Weight for semantic is (1 - hybrid_weight_bm25)
-        hybrid_weight_semantic = 1.0 - hybrid_weight_bm25
-        combined_scores = (hybrid_weight_bm25 * normalized_bm25_scores +
-                           hybrid_weight_semantic * normalized_semantic_scores)
+        combined_scores = combine_scores(
+            normalized_bm25_scores, normalized_semantic_scores, hybrid_weight_bm25
+        )
 
-        # Get top-k indices and scores from combined scores
-        # Ensure we don't request more items than available
-        actual_top_k_hybrid = min(top_k, len(self.document_texts))
-        if actual_top_k_hybrid == 0:
-            results = []
-        else:
-            top_indices_hybrid = np.argsort(combined_scores)[-actual_top_k_hybrid:][::-1]
-            results = [{
-                "content": self.document_texts[idx],
-                "metadata": self.document_metadatas[idx],
-                "score": float(combined_scores[idx]),
-                "retrieval_type": "hybrid"
-            } for idx in top_indices_hybrid]
+        results = [{
+            "content": self.document_texts[idx],
+            "metadata": self.document_metadatas[idx],
+            "score": float(combined_scores[idx]),
+            "retrieval_type": "hybrid"
+        } for idx in top_k_indices(combined_scores, top_k)]
 
         # Additional retrieval from Chroma (can act as a fallback or complementary)
         if self.chroma_store:
