@@ -1,6 +1,13 @@
 pydantic-settings
 structlog
 
+# API + auth (P4)
+fastapi
+uvicorn[standard]
+pyjwt
+argon2-cffi
+email-validator
+
 # Persistence (P2)
 sqlalchemy[asyncio]>=2.0
 psycopg[binary,pool]>=3.1

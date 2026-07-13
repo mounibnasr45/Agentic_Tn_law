@@ -1,93 +1,110 @@
-"""Streamlit frontend.
+"""Streamlit frontend — a pure HTTP client.
 
-Retrieval now lives in Postgres, so this no longer builds or owns an index — it only
-checks that the corpus has been ingested (`python -m app.cli ingest`). The
-"Réindexer" button is gone: indexing is an operational task, not a thing a random web
-visitor triggers on the shared process that everyone else is querying.
+This file imports NOTHING from app/. It talks to the FastAPI service over HTTP like any
+other client would, which is what turns the layering from a claim into a fact: if the
+domain leaked into the UI, this file could not compile.
 
-In P4 this becomes a pure HTTP client against the FastAPI service and stops importing
-app/ entirely.
+    uvicorn app.main:app --workers 1          # the API
+    streamlit run frontend/streamlit_app.py   # this
 """
-import asyncio
+import os
 
+import httpx
 import streamlit as st
 
-from app.agent import LegalAgentFR
-from app.core.config import get_settings
-from app.core.logging import configure_logging, get_logger
-from app.core.runtime import configure_event_loop
-from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
-from app.infra.db.session import get_sessionmaker
-from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
-
-configure_event_loop()
-settings = get_settings()
-configure_logging(level=settings.log_level, json_logs=settings.log_json)
-log = get_logger(__name__)
+API = os.getenv("API_URL", "http://localhost:8000/api")
+TIMEOUT = httpx.Timeout(30.0, connect=5.0)
 
 st.set_page_config(page_title="🇹🇳 Agent Juridique Tunisien", layout="wide")
 
 
-@st.cache_resource
-def get_embedder() -> SentenceTransformerEmbedder:
-    # Caching the MODEL is legitimate: it is stateless, read-only, and expensive to
-    # load. Caching the AGENT was not — the agent carries conversation memory, and a
-    # process-wide cache made that memory shared across every visitor (bug 2).
-    return SentenceTransformerEmbedder(settings.embedding_model_name)
+def api(method: str, path: str, **kwargs) -> httpx.Response:
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    return httpx.request(method, f"{API}{path}", headers=headers, timeout=TIMEOUT, **kwargs)
 
 
-def corpus_size() -> int:
-    async def _count() -> int:
-        async with get_sessionmaker()() as session:
-            return await PostgresChunkRepository(session).count()
-
+def health() -> dict | None:
     try:
-        return asyncio.run(_count())
-    except Exception:
-        log.exception("corpus_count_failed")
-        return -1
+        response = api("GET", "/health")
+        return response.json() if response.status_code == 200 else None
+    except httpx.HTTPError:
+        return None
 
 
 st.title("🇹🇳 Agent Juridique Tunisien")
-st.caption("Assistant IA ancré dans la Constitution et le Code Pénal tunisiens.")
+st.caption("Recherche ancrée dans la Constitution et le Code Pénal tunisiens.")
 
-chunks = corpus_size()
+status = health()
 
 with st.sidebar:
-    st.header("⚙️ État du système")
-    if chunks < 0:
-        st.error("Base de données inaccessible.")
-        st.code("docker compose up -d db")
-    elif chunks == 0:
-        st.warning("Corpus non indexé.")
-        st.code("python -m app.cli ingest")
+    st.header("⚙️ État du service")
+
+    if status is None:
+        st.error("API injoignable.")
+        st.code("uvicorn app.main:app --workers 1")
     else:
-        st.success(f"Corpus indexé : {chunks} extraits")
-        st.caption("Recherche hybride (BM25 lexical + dense pgvector) sur PostgreSQL.")
+        if status["corpus_chunks"] == 0:
+            st.warning("Corpus non indexé.")
+            st.code("python -m app.cli ingest")
+        else:
+            st.success(f"{status['corpus_chunks']} extraits indexés")
+        st.caption(f"Encodeur : `{status['embedding_model']}`")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.divider()
 
-# BUG 2 IS STILL HERE, and is now the last thing keeping this frontend honest: the
-# agent (and therefore its ConversationBufferWindowMemory) is per-Streamlit-session but
-# not per-user, and there is no user. P5 moves memory into Postgres keyed by an
-# authenticated user, at which point it becomes structurally impossible to share.
-if chunks > 0 and "agent" not in st.session_state:
-    st.session_state.agent = LegalAgentFR(embedder=get_embedder())
+    if "access_token" in st.session_state:
+        st.success(f"Connecté : {st.session_state.get('email', '')}")
+        if st.button("Se déconnecter"):
+            api("POST", "/auth/logout", json={"refresh_token": st.session_state.refresh_token})
+            st.session_state.clear()
+            st.rerun()
+    else:
+        st.subheader("Connexion")
+        email = st.text_input("Email")
+        password = st.text_input("Mot de passe", type="password")
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        col_login, col_register = st.columns(2)
+        for label, path, column in [
+            ("Se connecter", "/auth/login", col_login),
+            ("S'inscrire", "/auth/register", col_register),
+        ]:
+            if column.button(label, use_container_width=True):
+                response = api("POST", path, json={"email": email, "password": password})
+                if response.status_code in (200, 201):
+                    tokens = response.json()
+                    st.session_state.access_token = tokens["access_token"]
+                    st.session_state.refresh_token = tokens["refresh_token"]
+                    st.session_state.email = email
+                    st.rerun()
+                else:
+                    st.error(response.json().get("detail", "Échec de l'authentification."))
 
-ready = chunks > 0 and "agent" in st.session_state
+if "access_token" not in st.session_state:
+    st.info("Connectez-vous pour interroger le corpus.")
+    st.stop()
 
-if query := st.chat_input("Posez votre question juridique...", disabled=not ready):
-    st.session_state.messages.append({"role": "user", "content": query})
-    with st.chat_message("user"):
-        st.markdown(query)
+if status is None or status["corpus_chunks"] == 0:
+    st.warning("Le corpus n'est pas prêt.")
+    st.stop()
 
-    with st.chat_message("assistant"), st.spinner("L'agent consulte les textes..."):
-        response = st.session_state.agent.run(query)
-        st.markdown(response["answer"])
+query = st.text_input(
+    "Votre question juridique",
+    placeholder="Quelle est la peine pour un vol commis avec arme ?",
+)
 
-    st.session_state.messages.append({"role": "assistant", "content": response["answer"]})
+if query:
+    with st.spinner("Recherche dans les textes..."):
+        response = api("POST", "/search", params={"query": query, "top_k": 5})
+
+    if response.status_code != 200:
+        st.error(response.json().get("detail", "Erreur."))
+        st.stop()
+
+    payload = response.json()
+    st.caption(f"Mode de recherche : `{payload['retrieval_type']}`")
+
+    for result in payload["results"]:
+        article = result["article_number"] or "Préambule"
+        with st.expander(f"**{article}** — {result['source']}  ·  score {result['score']:.3f}"):
+            st.write(result["excerpt"])

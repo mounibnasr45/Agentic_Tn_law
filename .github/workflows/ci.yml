@@ -84,6 +84,9 @@ jobs:
       - name: Integration tests
         env:
           DATABASE_URL: postgresql+psycopg://legal:legal@localhost:5432/legal
+          # Not the committed default. Proves the app reads it from the environment, and
+          # keeps CI from being the one place the insecure default is exercised.
+          JWT_SECRET: ci-only-secret-at-least-thirty-two-bytes-long
         run: pytest tests/integration -v
 
   eval:

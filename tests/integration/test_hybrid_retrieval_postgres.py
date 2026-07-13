@@ -63,6 +63,12 @@ async def session():
     async with maker() as s:
         yield s
 
+    # Truncate on the way OUT as well as on the way in. Cleaning up only at setup leaves
+    # the last test's fixture rows sitting in the corpus, where they silently pollute
+    # `python -m eval.ablation` and a locally running API — which is exactly what happened.
+    async with engine.begin() as conn:
+        await conn.execute(text("TRUNCATE documents, chunks RESTART IDENTITY CASCADE"))
+
     await engine.dispose()
 
 

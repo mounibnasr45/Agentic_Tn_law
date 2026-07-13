@@ -62,7 +62,13 @@ class SentenceTransformerEmbedder:
 
     @property
     def dimensions(self) -> int:
-        return int(self._model.get_sentence_embedding_dimension())
+        # get_sentence_embedding_dimension() is deprecated in sentence-transformers 5.x;
+        # get_embedding_dimension() is the replacement. Support both so the app runs on
+        # either version rather than warning on every startup.
+        getter = getattr(self._model, "get_embedding_dimension", None) or (
+            self._model.get_sentence_embedding_dimension
+        )
+        return int(getter())
 
     def _encode(self, texts: Sequence[str]) -> np.ndarray:
         # Unit-normalise here so cosine distance in Postgres is well-behaved and the

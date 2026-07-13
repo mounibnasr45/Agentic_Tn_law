@@ -11,6 +11,7 @@ calling get_settings.cache_clear() after patching the environment.
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,26 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.1
     llm_max_tokens: int = 1024
     llm_max_retries: int = 3
+
+    # --- Auth ---
+    # MUST be overridden in every real deployment: a secret committed to a public repo is
+    # a backdoor, and whoever holds it can forge a token for ANY user. This default exists
+    # only so the test suite and `docker compose up` work out of the box, and it names
+    # itself so it cannot be mistaken for a real one.
+    #
+    # Length: >= 32 bytes. RFC 7518 §3.2 requires an HMAC key at least as long as the hash
+    # output (32 bytes for SHA-256), and PyJWT emits InsecureKeyLengthWarning below that.
+    # A short secret is brute-forceable offline from a single captured token.
+    jwt_secret: str = "dev-tunisian-agentic-law-INSECURE-DEFAULT-do-not-deploy"
+    # Short, because an access token cannot be revoked — the only thing limiting the
+    # damage of a stolen one is how fast it expires.
+    access_token_minutes: int = 15
+    # Long, because it CAN be revoked, and rotation means a stolen one is detectable.
+    refresh_token_days: int = 14
+
+    # --- API ---
+    environment: str = "development"  # "production" refuses to start on a dev secret
+    cors_origins: str = "http://localhost:8501,http://localhost:3000"
 
     # --- Database ---
     # psycopg3, not asyncpg: LangGraph's Postgres checkpointer (P5) is built on psycopg3,
@@ -89,6 +110,32 @@ class Settings(BaseSettings):
     # --- Logging ---
     log_level: str = "INFO"
     log_json: bool = True
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def jwt_secret_is_the_insecure_default(self) -> bool:
+        """The startup check that stops a dev secret reaching production.
+
+        A default secret is the single most common way a portfolio project ships an
+        authentication bypass: it is in the public repo, so anyone can mint a token for
+        any user. main.py refuses to start on this in production and shouts in dev.
+        """
+        return "INSECURE-DEFAULT" in self.jwt_secret
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def _reject_short_secrets(cls, value: str) -> str:
+        # 32 bytes = the SHA-256 output length. Below it, HMAC gains no security from the
+        # extra key material and the secret becomes brute-forceable offline from one
+        # captured token. PyJWT warns; we refuse.
+        if len(value.encode()) < 32:
+            raise ValueError(
+                f"jwt_secret must be at least 32 bytes (RFC 7518 §3.2), got {len(value.encode())}"
+            )
+        return value
 
     @property
     def chroma_db_dir(self) -> Path:

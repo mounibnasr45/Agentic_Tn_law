@@ -1,0 +1,3 @@
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 5923.23it/s]
+C:\Users\mouni\Downloads\portfolio\agentic_tn_law\Agentic_Tn_law\app\infra\embeddings\sentence_transformer.py:65: FutureWarning: The `get_sentence_embedding_dimension` method has been renamed to `get_embedding_dimension`.
+  return int(self._model.get_sentence_embedding_dimension())
