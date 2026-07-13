@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-# Least privilege: no job here writes to the repo.
 permissions:
   contents: read
 
@@ -15,26 +14,22 @@ jobs:
     name: Secret scan
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          # gitleaks scans history, not just the working tree — it needs all of it.
-          fetch-depth: 0
+          fetch-depth: 0  # gitleaks scans history, not just the working tree
 
       - name: gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  test:
-    name: Lint and test
+  unit:
+    name: Lint and unit tests
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -45,5 +40,48 @@ jobs:
       - name: Lint
         run: ruff check . --output-format=github
 
-      - name: Test
-        run: pytest --cov=app --cov-report=term-missing
+      - name: Unit tests
+        # No DATABASE_URL, so the integration suite skips. These run against in-memory
+        # fakes: no model download, no database, no network, no API key.
+        run: pytest tests --ignore=tests/integration --cov=app --cov-report=term-missing
+
+  integration:
+    name: Integration tests (real Postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: legal
+          POSTGRES_PASSWORD: legal
+          POSTGRES_DB: legal
+        ports:
+          - 5432:5432
+        # The job must wait for readiness, not merely for the container to start.
+        options: >-
+          --health-cmd "pg_isready -U legal -d legal"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://legal:legal@localhost:5432/legal
+        run: alembic upgrade head
+
+      - name: Integration tests
+        env:
+          DATABASE_URL: postgresql+psycopg://legal:legal@localhost:5432/legal
+        run: pytest tests/integration -v

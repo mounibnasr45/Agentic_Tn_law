@@ -1,6 +1,8 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+# Domain retrieval is async (both arms run concurrently), so tests are coroutines.
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100

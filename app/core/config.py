@@ -31,7 +31,18 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 1024
     llm_max_retries: int = 3
 
+    # --- Database ---
+    # psycopg3, not asyncpg: LangGraph's Postgres checkpointer (P5) is built on psycopg3,
+    # and one driver beats two pools with two sets of connection semantics.
+    database_url: str = "postgresql+psycopg://legal:legal@localhost:5432/legal"
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_echo: bool = False
+
     # --- Retrieval ---
+    # Candidates pulled from EACH arm before fusion. Higher = less truncation bias in
+    # align_candidates (a chunk absent from one arm is scored 0.0 there), wider SQL scan.
+    candidate_limit: int = 50
     # NOTE: this encoder has max_seq_length=128 TOKENS, while chunk_size below is
     # in CHARACTERS (~700 chars is ~200-250 French tokens). Chunks are therefore
     # silently truncated at encode time. Tracked as bug 13; the ablation harness

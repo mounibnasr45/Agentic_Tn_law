@@ -1,6 +1,12 @@
 pydantic-settings
 structlog
 
+# Persistence (P2)
+sqlalchemy[asyncio]>=2.0
+psycopg[binary,pool]>=3.1
+pgvector>=0.2.5
+alembic>=1.13
+
 torch
 numpy
 PyMuPDF
@@ -16,9 +22,14 @@ langchain-text-splitters>=0.3.0
 
 streamlit
 duckduckgo-search
-chromadb
 tiktoken
 
+# Removed in P2:
+#   chromadb   - replaced by Postgres + pgvector. The lexical arm moved to Postgres FTS
+#                and the dense arm to pgvector, so both are now durable. Chroma was the
+#                ONLY thing that persisted, which is precisely why a cold process
+#                silently degraded to dense-only search (bug 1).
+#
 # Removed in P1:
 #   faiss-cpu     — imported, but its only call site was commented out and no index
 #                   file was ever written.

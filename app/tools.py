@@ -1,10 +1,26 @@
+"""Agent tools.
+
+The retrieval tool now queries Postgres through the domain retriever, so it inherits
+the durability fix: a tool call from a cold worker runs genuine hybrid retrieval rather
+than silently degrading.
+
+asyncio.run() below is a deliberate, temporary bridge. LangChain's Tool.func is sync,
+and the AgentExecutor calling it is sync, but everything underneath is async. P5
+replaces the whole executor with LangGraph and this bridge disappears — it is not the
+shape to copy.
+"""
+import asyncio
+
 from langchain.tools import Tool
-from langchain_community.tools import DuckDuckGoSearchRun
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.retriever import HybridRetriever
+from app.domain.models import RetrievedChunk
+from app.domain.retrieval import HybridRetriever
+from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
+from app.infra.db.session import get_sessionmaker
+from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
 
 log = get_logger(__name__)
 
@@ -12,68 +28,73 @@ log = get_logger(__name__)
 class RechercheDocumentInput(BaseModel):
     query: str = Field(
         description=(
-            "La requête de recherche pour trouver des documents ou articles "
-            "juridiques pertinents."
+            "La requête de recherche pour trouver des articles juridiques pertinents."
         )
     )
 
 
-class RechercheWebInput(BaseModel):
-    query: str = Field(description="La requête de recherche pour un moteur de recherche web.")
+async def retrieve(query: str, embedder) -> list[RetrievedChunk]:
+    """Structured retrieval. Returns chunks, not a string.
 
+    Bug 4's root cause was flattening these into a truncated string inside the tool,
+    which destroyed the chunk ids, scores and article numbers — so citations could
+    never reach the caller and `sources` ended up a hardcoded placeholder. The
+    structured type is preserved here; P5 persists it as citation rows.
+    """
+    settings = get_settings()
 
-def setup_outil_recherche_documentaire(retriever: HybridRetriever) -> Tool:
-    def rechercher_documents(query: str) -> str:
-        settings = get_settings()
-
-        if not retriever or not retriever.is_initialized:
-            return "Le récupérateur de documents n'est pas disponible ou non initialisé."
-
-        results = retriever.search(query, top_k=settings.top_k_retriever)
-        if not results:
-            return "Aucun document pertinent trouvé pour votre requête."
-
-        # BUG 4: flattening structured results into a string here is what destroys the
-        # citations. Scores, chunk ids and article numbers cannot survive this, which
-        # is why agent.run() ends up returning a hardcoded placeholder for `sources`.
-        # Fixed in P5, when the tool returns list[RetrievedChunk] and the chat service
-        # persists them as citation rows.
-        excerpts = "\n\n---\n\n".join(
-            f"Source: {r['metadata'].get('source', 'N/A')}, "
-            f"Morceau: {r['metadata'].get('chunk_num', 'N/A')}\n"
-            f"Contenu: {r['content'][:1000]}..."
-            for r in results
+    async with get_sessionmaker()() as session:
+        retriever = HybridRetriever(
+            embedder, PostgresChunkRepository(session), settings.candidate_limit
         )
-        return f"Extraits de documents pertinents trouvés:\n{excerpts}"
+        return await retriever.search(
+            query,
+            top_k=settings.top_k_retriever,
+            weight_bm25=settings.hybrid_weight_bm25,
+        )
+
+
+def format_for_prompt(chunks: list[RetrievedChunk]) -> str:
+    """Render chunks into the prompt. The structured objects survive alongside this."""
+    if not chunks:
+        return "Aucun document pertinent trouvé pour votre requête."
+
+    return "Extraits de documents pertinents trouvés:\n" + "\n\n---\n\n".join(
+        f"[{c.article_number or 'préambule'}] Source: {c.source}\n{c.content}"
+        for c in chunks
+    )
+
+
+def setup_outil_recherche_documentaire(embedder: SentenceTransformerEmbedder) -> Tool:
+    def rechercher_documents(query: str) -> str:
+        try:
+            chunks = asyncio.run(retrieve(query, embedder))
+        except Exception:
+            log.exception("retrieval_tool_failed", query_length=len(query))
+            raise
+
+        log.info(
+            "retrieval_tool_called",
+            result_count=len(chunks),
+            articles=[c.article_number for c in chunks[:5]],
+        )
+        return format_for_prompt(chunks)
 
     return Tool(
         name="outil_recherche_documentaire",
         func=rechercher_documents,
         description=(
-            "Recherche dans les documents juridiques locaux (lois, constitution, codes) "
-            "des articles ou informations pertinents. À utiliser pour des questions "
-            "juridiques spécifiques."
+            "Recherche dans les documents juridiques tunisiens (Constitution, Code "
+            "Pénal) les articles pertinents. À utiliser pour toute question juridique."
         ),
         args_schema=RechercheDocumentInput,
     )
 
 
-def setup_outil_recherche_web() -> Tool:
-    search = DuckDuckGoSearchRun()
-    return Tool(
-        name="outil_recherche_web",
-        func=search.run,
-        description=(
-            "Effectue une recherche web en utilisant DuckDuckGo. Utile pour des "
-            "connaissances générales, des événements actuels, ou des informations "
-            "non trouvées dans les documents locaux."
-        ),
-        args_schema=RechercheWebInput,
-    )
-
-
-def get_all_tools(retriever: HybridRetriever) -> list[Tool]:
-    return [
-        setup_outil_recherche_documentaire(retriever),
-        setup_outil_recherche_web(),
-    ]
+def get_all_tools(embedder: SentenceTransformerEmbedder) -> list[Tool]:
+    # The DuckDuckGo web tool is gone. A legal assistant that cites arbitrary web pages
+    # undermines the one thing it is for — being grounded in the Constitution and the
+    # Penal Code — and its output cannot be scored against the golden set, so it would
+    # make the eval harness meaningless. It also called a blocking HTTP client with no
+    # timeout. If it comes back, it comes back behind a flag and it never emits a citation.
+    return [setup_outil_recherche_documentaire(embedder)]

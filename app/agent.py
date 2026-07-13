@@ -6,9 +6,9 @@ from langchain.memory import ConversationBufferWindowMemory
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
 from app.llm_interface import get_llm
 from app.prompts import CONVERSATIONAL_REACT_PROMPT
-from app.retriever import HybridRetriever
 from app.tools import get_all_tools
 
 log = get_logger(__name__)
@@ -38,11 +38,13 @@ class LegalAgentFR:
              tool, which flattens them into a truncated string.
     """
 
-    def __init__(self, retriever: HybridRetriever):
+    def __init__(self, embedder: SentenceTransformerEmbedder):
         settings = get_settings()
 
+        # The agent no longer holds a retriever. Retrieval is a query against Postgres,
+        # made per tool call — there is no index object to own, warm up, or lose.
         self.llm = get_llm(model_name=settings.agent_llm_model)
-        self.tools = get_all_tools(retriever)
+        self.tools = get_all_tools(embedder)
 
         # BUG 2 lives on this line: per-object memory on a process-global object.
         self.memory = ConversationBufferWindowMemory(
