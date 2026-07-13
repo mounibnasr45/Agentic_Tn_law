@@ -14,6 +14,8 @@ supposed to default.
 This test compares the migrated database against the ORM metadata and fails on drift.
 """
 import os
+import subprocess
+import sys
 
 import pytest
 import pytest_asyncio
@@ -133,3 +135,28 @@ async def test_the_tsv_column_is_generated_by_postgres(schema):
 async def test_the_lexical_index_exists(schema):
     """The GIN index on tsv IS the lexical arm. Without it every query sequential-scans."""
     assert "ix_chunks_tsv" in schema["indexes"]["chunks"]
+
+
+def test_alembic_check_finds_no_drift():
+    """`alembic check` is a stricter drift detector than the tests above, and it earned it.
+
+    The hand-rolled checks compare names, nullability and defaults. They do NOT compare
+    TYPES — so they happily passed while the ORM declared `Mapped[int]` (INTEGER) for
+    columns the migration had created as BIGINT. `alembic check` caught it.
+
+    Kept alongside rather than instead of the others: they explain WHAT drifted in plain
+    language, this one is the backstop that catches the rest. It also proves the
+    include_object filter in alembic/env.py is working — without it, autogenerate would
+    propose DROPPING LangGraph's checkpoint tables, and this test would fail loudly rather
+    than a migration silently deleting every conversation.
+    """
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "check"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, (
+        "ORM and migrations have drifted:\n" + result.stdout + result.stderr
+    )

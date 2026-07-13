@@ -18,13 +18,13 @@ from sqlalchemy import delete, select
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.core.runtime import configure_event_loop
-from app.document_processor import extract_text_from_pdf
 from app.domain.chunking import split_by_article
 from app.domain.retrieval import HybridRetriever
 from app.infra.db.models import Chunk, Document
 from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
 from app.infra.db.session import dispose_engine, get_sessionmaker
 from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
+from app.infra.pdf import extract_text
 
 log = get_logger(__name__)
 
@@ -47,7 +47,7 @@ async def ingest() -> int:
         for filename in settings.default_document_filenames:
             path = settings.documents_dir / filename
 
-            text = extract_text_from_pdf(path)
+            text = extract_text(path)
             if not text.strip():
                 log.error("no_text_extracted", filename=filename)
                 return 1

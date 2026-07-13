@@ -16,7 +16,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
-from app.api.routes import auth, health, search
+from app.agent.graph import create_checkpointer
+from app.api.routes import auth, chat, health, search
 from app.core.config import get_settings
 from app.core.errors import DomainError, to_http_exception
 from app.core.logging import configure_logging, get_logger, request_id_var
@@ -54,10 +55,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     log.info("loading_embedder", model=settings.embedding_model_name)
     app.state.embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
+
+    # Conversation memory. setup() is idempotent and creates LangGraph's own tables; doing
+    # it here means the container is not "ready" until memory genuinely works, rather than
+    # discovering it on the first user's first message.
+    app.state.checkpointer, app.state.checkpointer_pool = await create_checkpointer(
+        settings.database_url
+    )
+
     log.info("startup_complete")
 
     yield
 
+    await app.state.checkpointer_pool.close()
     await dispose_engine()
     log.info("shutdown_complete")
 
@@ -117,6 +127,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
     app.include_router(search.router, prefix="/api")
+    app.include_router(chat.router, prefix="/api")
 
     return app
 

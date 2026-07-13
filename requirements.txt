@@ -21,11 +21,22 @@ sentence-transformers
 rank_bm25
 scikit-learn
 
-langchain>=0.3.0
-langchain-community>=0.3.0
+# Agent (P5)
+langgraph
+langgraph-checkpoint-postgres
 langchain-core>=0.3.0
 langchain-openai>=0.2.0
-langchain-text-splitters>=0.3.0
+
+# Dropped in P5:
+#   langchain                - AgentExecutor and its text-ReAct prompt are gone. LangGraph
+#                              uses native tool-calling, so there is no format for the
+#                              model to mis-imitate and handle_parsing_errors has nothing
+#                              left to handle.
+#   langchain-community      - only ever pulled in for Chroma and DuckDuckGoSearchRun.
+#   langchain-text-splitters - superseded by app/domain/chunking.py. Fixed-size splitting
+#                              cuts through the middle of articles, which makes a citation
+#                              meaningless and the golden set's expected_article
+#                              uncomputable.
 
 streamlit
 duckduckgo-search

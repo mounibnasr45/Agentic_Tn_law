@@ -1,7 +1,7 @@
-Started server process [33140]
+Started server process [13356]
 Waiting for application startup.
-{"detail": "using the committed development default; set JWT_SECRET before deploying", "event": "insecure_jwt_secret", "level": "warning", "timestamp": "2026-07-13T18:22:41.003820Z"}
-{"model": "intfloat/multilingual-e5-small", "event": "loading_embedder", "level": "info", "timestamp": "2026-07-13T18:22:41.005324Z"}
+{"detail": "using the committed development default; set JWT_SECRET before deploying", "event": "insecure_jwt_secret", "level": "warning", "timestamp": "2026-07-13T18:54:31.837027Z"}
+{"model": "intfloat/multilingual-e5-small", "event": "loading_embedder", "level": "info", "timestamp": "2026-07-13T18:54:31.838027Z"}
 No device provided, using cpu
 HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
 HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/modules.json "HTTP/1.1 200 OK"
@@ -37,17 +37,9 @@ HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-sma
 HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
 HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
 HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
-{"model": "intfloat/multilingual-e5-small", "max_seq_length": 512, "dimensions": 384, "event": "embedding_model_loaded", "level": "info", "timestamp": "2026-07-13T18:22:59.245177Z"}
-{"event": "startup_complete", "level": "info", "timestamp": "2026-07-13T18:22:59.246764Z"}
+{"model": "intfloat/multilingual-e5-small", "max_seq_length": 512, "dimensions": 384, "event": "embedding_model_loaded", "level": "info", "timestamp": "2026-07-13T18:54:42.660257Z"}
+{"event": "checkpointer_ready", "level": "info", "timestamp": "2026-07-13T18:54:42.779579Z"}
+{"event": "startup_complete", "level": "info", "timestamp": "2026-07-13T18:54:42.779579Z"}
 Application startup complete.
-Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
-127.0.0.1:58128 - "GET /api/health HTTP/1.1" 200
-127.0.0.1:57599 - "GET /api/health HTTP/1.1" 200
-127.0.0.1:57814 - "POST /api/search?query=vol HTTP/1.1" 401
-{"user_id": "1c2f93bf-1b9d-49a6-a940-9c45b79db8d3", "event": "user_registered", "request_id": "a65851bb-f223-4950-a3e4-d2d6bbd88629", "level": "info", "timestamp": "2026-07-13T18:28:46.838896Z"}
-127.0.0.1:57814 - "POST /api/auth/register HTTP/1.1" 201
-127.0.0.1:57814 - "GET /api/auth/me HTTP/1.1" 200
-{"result_count": 3, "retrieval_type": "dense", "dense_candidates": 50, "lexical_candidates": 50, "event": "search_complete", "request_id": "65fda135-2eb3-4507-965a-ac02107cc56b", "level": "info", "timestamp": "2026-07-13T18:28:47.063884Z"}
-127.0.0.1:57814 - "POST /api/search?query=Quelle%20est%20la%20peine%20pour%20un%20vol%20commis%20avec%20arme%20%3F&top_k=3 HTTP/1.1" 200
-127.0.0.1:58025 - "POST /api/search?query=vol%20avec%20arme&top_k=1 HTTP/1.1" 401
-127.0.0.1:58028 - "POST /api/search?query=test HTTP/1.1" 401
+Uvicorn running on http://0.0.0.0:8081 (Press CTRL+C to quit)
+127.0.0.1:60539 - "GET /api/health HTTP/1.1" 200

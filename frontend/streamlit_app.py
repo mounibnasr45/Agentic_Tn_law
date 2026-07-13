@@ -1,10 +1,10 @@
 """Streamlit frontend — a pure HTTP client.
 
-This file imports NOTHING from app/. It talks to the FastAPI service over HTTP like any
-other client would, which is what turns the layering from a claim into a fact: if the
-domain leaked into the UI, this file could not compile.
+Imports NOTHING from app/. It talks to the FastAPI service over HTTP like any other
+client, which makes the layering a fact rather than a claim: if the domain leaked into the
+UI, this file could not compile.
 
-    uvicorn app.main:app --workers 1          # the API
+    python -m app.run                         # the API
     streamlit run frontend/streamlit_app.py   # this
 """
 import os
@@ -13,7 +13,7 @@ import httpx
 import streamlit as st
 
 API = os.getenv("API_URL", "http://localhost:8000/api")
-TIMEOUT = httpx.Timeout(30.0, connect=5.0)
+TIMEOUT = httpx.Timeout(120.0, connect=5.0)  # an agent run can take a while
 
 st.set_page_config(page_title="🇹🇳 Agent Juridique Tunisien", layout="wide")
 
@@ -33,16 +33,16 @@ def health() -> dict | None:
 
 
 st.title("🇹🇳 Agent Juridique Tunisien")
-st.caption("Recherche ancrée dans la Constitution et le Code Pénal tunisiens.")
+st.caption("Réponses ancrées dans la Constitution et le Code Pénal, avec citations vérifiables.")
 
 status = health()
 
 with st.sidebar:
-    st.header("⚙️ État du service")
+    st.header("⚙️ Service")
 
     if status is None:
         st.error("API injoignable.")
-        st.code("uvicorn app.main:app --workers 1")
+        st.code("python -m app.run")
     else:
         if status["corpus_chunks"] == 0:
             st.warning("Corpus non indexé.")
@@ -55,6 +55,28 @@ with st.sidebar:
 
     if "access_token" in st.session_state:
         st.success(f"Connecté : {st.session_state.get('email', '')}")
+
+        # Conversations are per-user and live in Postgres. The old build cached ONE agent
+        # object process-wide, so every visitor shared one memory buffer and could read
+        # each other's history (bug 2).
+        conversations = api("GET", "/conversations")
+        if conversations.status_code == 200 and conversations.json():
+            st.subheader("Conversations")
+            for conversation in conversations.json():
+                label = conversation["title"] or "(sans titre)"
+                if st.button(label[:40], key=conversation["id"], use_container_width=True):
+                    st.session_state.conversation_id = conversation["id"]
+                    st.session_state.messages = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in api("GET", f"/conversations/{conversation['id']}").json()
+                    ]
+                    st.rerun()
+
+        if st.button("Nouvelle conversation", use_container_width=True):
+            st.session_state.pop("conversation_id", None)
+            st.session_state.messages = []
+            st.rerun()
+
         if st.button("Se déconnecter"):
             api("POST", "/auth/logout", json={"refresh_token": st.session_state.refresh_token})
             st.session_state.clear()
@@ -76,6 +98,7 @@ with st.sidebar:
                     st.session_state.access_token = tokens["access_token"]
                     st.session_state.refresh_token = tokens["refresh_token"]
                     st.session_state.email = email
+                    st.session_state.messages = []
                     st.rerun()
                 else:
                     st.error(response.json().get("detail", "Échec de l'authentification."))
@@ -88,23 +111,52 @@ if status is None or status["corpus_chunks"] == 0:
     st.warning("Le corpus n'est pas prêt.")
     st.stop()
 
-query = st.text_input(
-    "Votre question juridique",
-    placeholder="Quelle est la peine pour un vol commis avec arme ?",
-)
+st.session_state.setdefault("messages", [])
 
-if query:
-    with st.spinner("Recherche dans les textes..."):
-        response = api("POST", "/search", params={"query": query, "top_k": 5})
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+        for citation in message.get("citations", []):
+            article = citation["article_number"] or "Préambule"
+            with st.expander(f"📖 {article} — {citation['source']}"):
+                st.write(citation["excerpt"])
 
-    if response.status_code != 200:
-        st.error(response.json().get("detail", "Erreur."))
-        st.stop()
+if question := st.chat_input("Posez votre question juridique..."):
+    st.session_state.messages.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.markdown(question)
 
-    payload = response.json()
-    st.caption(f"Mode de recherche : `{payload['retrieval_type']}`")
+    with st.chat_message("assistant"), st.spinner("L'agent consulte les textes..."):
+        response = api(
+            "POST",
+            "/ask",
+            json={
+                "question": question,
+                "conversation_id": st.session_state.get("conversation_id"),
+            },
+        )
 
-    for result in payload["results"]:
-        article = result["article_number"] or "Préambule"
-        with st.expander(f"**{article}** — {result['source']}  ·  score {result['score']:.3f}"):
-            st.write(result["excerpt"])
+        if response.status_code != 200:
+            # A failure is a failure. The old agent caught every exception and returned the
+            # error text AS the assistant's answer, with a 200 OK (bug 3).
+            st.error(response.json().get("detail", "Erreur."))
+            st.stop()
+
+        payload = response.json()
+        st.session_state.conversation_id = payload["conversation_id"]
+        st.markdown(payload["answer"])
+
+        # Real citations, each backed by a chunk row in the database. `sources` used to be
+        # a hardcoded placeholder string (bug 4).
+        for citation in payload["citations"]:
+            article = citation["article_number"] or "Préambule"
+            with st.expander(f"📖 {article} — {citation['source']}  ·  {citation['score']:.3f}"):
+                st.write(citation["excerpt"])
+
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": payload["answer"],
+            "citations": payload["citations"],
+        }
+    )

@@ -53,6 +53,13 @@ class NotAuthenticated(DomainError):
     detail = "Authentification requise."
 
 
+class ConversationNotFound(DomainError):
+    # 404 for BOTH "does not exist" and "belongs to someone else". Distinguishing them
+    # would tell an attacker which conversation ids are real.
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Conversation introuvable."
+
+
 class CorpusNotReady(DomainError):
     # 503, not 500: the service is fine, the corpus simply has not been ingested yet.
     # A load balancer should back off and retry, not page someone.
