@@ -42,14 +42,42 @@ class PostgresChunkRepository:
         return {chunk_id: float(similarity) for chunk_id, similarity in rows}
 
     async def lexical_candidates(self, query: str, limit: int) -> dict[int, float]:
-        # websearch_to_tsquery, not plainto_tsquery: it tolerates the punctuation and
-        # quoting real users type, instead of raising a syntax error on an apostrophe —
-        # and French legal queries are full of apostrophes.
-        tsquery = func.websearch_to_tsquery(FRENCH_CONFIG, query)
+        """The lexical arm: OR the query's lexemes, rank by cover density.
+
+        THE BUG THE EVAL HARNESS FOUND. This used websearch_to_tsquery, which ANDs
+        unquoted terms: the question "Quelle est la peine pour un vol commis avec arme ?"
+        compiles to
+
+            'quel' & 'pein' & 'vol' & 'comm' & 'arme'
+
+        and demands every one of those stems in a single chunk. Across 716 chunks of
+        Tunisian law that matched EXACTLY ZERO. The lexical arm returned nothing for
+        every natural-language question, so "hybrid" retrieval was silently identical to
+        dense-only — the very bug we had just finished fixing, reintroduced one layer
+        down. The ablation table made it obvious: every fusion weight from 0.0 to 0.8
+        scored identically, and lexical-only scored ~0.
+
+        AND-semantics is right for a search box where the user types keywords. It is
+        wrong for a system whose users ask questions in sentences. OR-ing the lexemes and
+        ranking by ts_rank_cd is the BM25-shaped behaviour we actually wanted: a chunk
+        matching more query terms, more closely together, ranks higher.
+
+        Building the query as `to_tsvector(q) -> lexemes -> 'a | b | c'` (rather than
+        splitting the string in Python) means Postgres does the stemming, unaccenting and
+        stop-word removal with the SAME configuration used to build the index. Hand-rolled
+        tokenisation would drift from the index and silently lose matches.
+        """
+        if not query.strip():
+            return {}
+
+        lexemes = func.array_to_string(
+            func.tsvector_to_array(func.to_tsvector(FRENCH_CONFIG, query)), " | "
+        )
+        tsquery = func.to_tsquery(FRENCH_CONFIG, lexemes)
 
         # ts_rank_cd, not ts_rank: the cover-density variant rewards query terms that
-        # appear NEAR each other. "peine" and "vol" adjacent is a much stronger signal
-        # than the two words at opposite ends of a long article.
+        # appear NEAR each other. "peine" next to "vol" is a far stronger signal than the
+        # two words at opposite ends of a long article.
         rank = func.ts_rank_cd(Chunk.tsv, tsquery)
 
         rows = await self._session.execute(

@@ -11,7 +11,6 @@ There is now no in-memory index to lose: both arms are queries against durable s
 The class holds no corpus state at all, so there is nothing to rebuild, nothing to
 mutate, and no lock to forget (which also dissolves bug 6).
 """
-import asyncio
 from enum import StrEnum
 
 from app.core.logging import get_logger
@@ -61,12 +60,25 @@ class HybridRetriever:
 
         embedding = await self._embedder.embed_query(query)
 
-        # The two arms are independent; run them concurrently. Both are I/O against
-        # Postgres, so this is a real win, not a decorative one.
-        dense, lexical = await asyncio.gather(
-            self._repository.dense_candidates(embedding, self._candidate_limit),
-            self._repository.lexical_candidates(query, self._candidate_limit),
-        )
+        # SEQUENTIAL, DELIBERATELY. This used asyncio.gather() to run the two arms
+        # concurrently, which looks like free parallelism and is in fact a latent crash:
+        # a SQLAlchemy AsyncSession is NOT safe for concurrent use. Two coroutines racing
+        # to provision the same connection raise
+        #
+        #     InvalidRequestError: This session is provisioning a new connection;
+        #     concurrent operations are not permitted
+        #
+        # and it only fires on a session that has not yet opened a connection — so it
+        # passes every warm test and fails intermittently on the first query of a fresh
+        # request. Exactly the kind of bug that reaches production and then cannot be
+        # reproduced.
+        #
+        # Making this genuinely concurrent would mean one session per arm, which drags
+        # transaction semantics into the domain layer for a saving of a few milliseconds
+        # against a local Postgres. If it ever matters, the right move is one round trip:
+        # both arms as CTEs in a single statement.
+        dense = await self._repository.dense_candidates(embedding, self._candidate_limit)
+        lexical = await self._repository.lexical_candidates(query, self._candidate_limit)
 
         if not dense and not lexical:
             log.info("no_candidates", query_length=len(query))

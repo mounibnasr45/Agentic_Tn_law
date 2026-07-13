@@ -43,15 +43,34 @@ class Settings(BaseSettings):
     # Candidates pulled from EACH arm before fusion. Higher = less truncation bias in
     # align_candidates (a chunk absent from one arm is scored 0.0 there), wider SQL scan.
     candidate_limit: int = 50
-    # NOTE: this encoder has max_seq_length=128 TOKENS, while chunk_size below is
-    # in CHARACTERS (~700 chars is ~200-250 French tokens). Chunks are therefore
-    # silently truncated at encode time. Tracked as bug 13; the ablation harness
-    # quantifies the fix (multilingual-e5-small, 512 tokens, also 384-dim).
-    embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    # BUG 13, FIXED AND MEASURED. The previous encoder
+    # (paraphrase-multilingual-MiniLM-L12-v2) has max_seq_length=128 TOKENS, while
+    # chunk_size is in CHARACTERS: 38% of penal-code chunks exceeded it, and 12% of the
+    # corpus's tokens were silently dropped before ever being embedded. No error; just a
+    # transformers warning nobody read. e5-small takes 512 tokens and is also 384-dim, so
+    # the swap needed no schema migration. Measured on the 56-question golden set:
+    #     hit@1  0.250 -> 0.679
+    #     hit@5  0.500 -> 0.839
+    #     MRR    0.364 -> 0.747
+    # e5 requires "query: " / "passage: " prefixes; the embedder adds them.
+    embedding_model_name: str = "intfloat/multilingual-e5-small"
     chunk_size: int = 700
     chunk_overlap: int = 150
     top_k_retriever: int = 20
-    hybrid_weight_bm25: float = 0.4
+
+    # 0.0 = dense only, 1.0 = lexical only, in between = weighted hybrid.
+    #
+    # DENSE-ONLY IS THE MEASURED BEST, and this default says so. Once the encoder was
+    # fixed, EVERY hybrid weight scored worse than pure dense on the golden set: best
+    # weighted hybrid hit@5 0.732, RRF 0.750, dense 0.839. We expected the lexical arm to
+    # earn its keep on article-number lookups ("que dit l'article 258 ?") and tested that
+    # class specifically — dense 5/6, lexical 1/6. It did not.
+    #
+    # The lexical arm and RRF stay in the codebase and in the ablation, because this
+    # result is specific to THIS corpus (712 chunks) and THIS encoder and must be
+    # re-measured before it is trusted anywhere else. Shipping "hybrid" anyway would be
+    # choosing a worse system for a nicer word.
+    hybrid_weight_bm25: float = 0.0
 
     # --- Agent ---
     agent_max_iterations: int = 10

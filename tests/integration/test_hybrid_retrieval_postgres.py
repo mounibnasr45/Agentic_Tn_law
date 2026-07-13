@@ -111,10 +111,55 @@ class TestBug1AgainstRealPostgres:
 
         candidates = await repository.lexical_candidates("vol prison", limit=10)
 
-        # Non-empty means the tsvector column, the GIN index, the french_unaccent
-        # config and websearch_to_tsquery are all genuinely wired up.
+        # Non-empty means the tsvector column, the GIN index and the french_unaccent
+        # config are all genuinely wired up.
         assert candidates
         assert all(score > 0 for score in candidates.values())
+
+    async def test_the_lexical_arm_answers_a_full_sentence_question(self, populated):
+        """Regression: the lexical arm must OR the query's lexemes, not AND them.
+
+        This used websearch_to_tsquery, which ANDs unquoted terms. A natural-language
+        question then compiles to 'quel' & 'pein' & 'vol' & 'comm' & 'arme' and requires
+        every stem in one chunk — which matched ZERO chunks across the whole corpus. The
+        lexical arm silently returned nothing for every real question, so hybrid search
+        collapsed back to dense-only. Keyword queries still worked, so a keyword-shaped
+        test would have passed while the system was broken for its actual users.
+        """
+        repository = PostgresChunkRepository(populated)
+
+        candidates = await repository.lexical_candidates(
+            "Quelle est la peine de prison pour un vol simple ?", limit=10
+        )
+
+        assert candidates, "the lexical arm matched nothing on a full-sentence question"
+
+    async def test_the_lexical_arm_is_unaccented(self, populated):
+        # Users type "aggrave", the corpus says "aggravé". Stock 'french' would not match
+        # them; french_unaccent must.
+        repository = PostgresChunkRepository(populated)
+
+        assert await repository.lexical_candidates("vol aggrave", limit=10)
+
+    async def test_an_empty_query_returns_no_candidates_rather_than_erroring(self, populated):
+        # to_tsquery('') raises a syntax error in Postgres.
+        repository = PostgresChunkRepository(populated)
+
+        assert await repository.lexical_candidates("   ", limit=10) == {}
+
+    async def test_lexical_only_retrieval_actually_finds_the_right_article(self, populated):
+        # The end-to-end assertion the ablation should have been able to make from day
+        # one: with weight_bm25=1.0 the dense arm is switched off entirely, so a non-zero
+        # score here proves the lexical arm is carrying real signal on its own.
+        embedder = FakeEmbedder()
+        retriever = HybridRetriever(embedder, PostgresChunkRepository(populated))
+
+        results = await retriever.search(
+            "Quelle est la peine pour un vol ?", top_k=3, weight_bm25=1.0
+        )
+
+        assert results
+        assert any(r.article_number in {"Article 264", "Article 265"} for r in results)
 
     async def test_the_dense_arm_returns_similarity_not_distance(self, populated):
         # THE TRAP. pgvector's <=> is cosine DISTANCE (0 = identical). If the repository
