@@ -46,4 +46,4 @@ jobs:
         run: ruff check . --output-format=github
 
       - name: Test
-        run: pytest --cov=src --cov-report=term-missing
+        run: pytest --cov=app --cov-report=term-missing

@@ -1,6 +1,11 @@
 # src/prompts.py
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    MessagesPlaceholder,
+    SystemMessagePromptTemplate,
+)
 
 # REACT_AGENT_SYSTEM_PROMPT (your existing string prompt) is good because it defines how the LLM should structure its ReAct steps.
 # The create_react_agent will use this kind of structure to guide the LLM.

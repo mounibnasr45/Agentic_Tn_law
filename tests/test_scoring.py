@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.scoring import combine_scores, normalize_bm25, normalize_semantic, top_k_indices
+from app.domain.scoring import combine_scores, normalize_bm25, normalize_semantic, top_k_indices
 
 
 class TestNormalizeBM25:

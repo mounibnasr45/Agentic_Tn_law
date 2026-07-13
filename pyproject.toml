@@ -3,5 +3,17 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 120
+line-length = 100
 exclude = ["vector_store", "documents", "__pycache__", "*.ipynb"]
+
+[tool.ruff.lint]
+# E,F = pyflakes + pycodestyle errors (ruff's default)
+# I   = import sorting
+# UP  = pyupgrade (this codebase targets 3.11; typing.List etc. are obsolete)
+# B   = bugbear (catches, among others, mutable default args)
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt text. Re-wrapping a prompt to satisfy a line-length rule changes what the
+# model sees; the prompt is the artefact, not the formatting.
+"app/prompts.py" = ["E501"]

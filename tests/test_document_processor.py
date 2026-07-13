@@ -1,6 +1,6 @@
 from langchain_core.documents import Document
 
-from src.document_processor import split_documents_into_chunks
+from app.document_processor import split_documents_into_chunks
 
 
 def make_doc(length: int, source: str = "constitution.pdf") -> Document:

@@ -1,18 +1,27 @@
-python-dotenv
+pydantic-settings
+structlog
+
 torch
 numpy
 PyMuPDF
-faiss-cpu
 sentence-transformers
 rank_bm25
 scikit-learn
+
 langchain>=0.3.0
 langchain-community>=0.3.0
 langchain-core>=0.3.0
 langchain-openai>=0.2.0
 langchain-text-splitters>=0.3.0
-requests
+
 streamlit
 duckduckgo-search
 chromadb
 tiktoken
+
+# Removed in P1:
+#   faiss-cpu     — imported, but its only call site was commented out and no index
+#                   file was ever written.
+#   requests      — used only by direct_query_openrouter_llm(), which had zero callers.
+#   python-dotenv — pydantic-settings reads .env natively; load_dotenv() at import
+#                   time was one of the side effects that made config untestable.
