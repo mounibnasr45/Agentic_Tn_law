@@ -46,13 +46,33 @@ async def ingest() -> int:
     async with get_sessionmaker()() as session:
         for filename in settings.default_document_filenames:
             path = settings.documents_dir / filename
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+
+            existing = await session.scalar(select(Document).where(Document.sha256 == digest))
+
+            # Skip re-embedding entirely when the bytes AND the configured encoder both
+            # match what is already indexed. Without this, `preDeployCommand` on Render
+            # re-chunks and re-embeds the whole corpus on every single push — the PDFs are
+            # committed and unchanged, so every one of those redeploys pays real CPU time
+            # for identical output. It also protects the inverse: if EMBEDDING_MODEL_NAME
+            # changes (as it did for bug 13), a stale chunk's embedding_model no longer
+            # matches settings, so this correctly falls through and re-embeds.
+            if existing is not None and existing.status == "indexed":
+                indexed_model = await session.scalar(
+                    select(Chunk.embedding_model).where(Chunk.document_id == existing.id).limit(1)
+                )
+                if indexed_model == settings.embedding_model_name:
+                    log.info(
+                        "document_already_indexed",
+                        filename=filename,
+                        embedding_model=indexed_model,
+                    )
+                    continue
 
             text = extract_text(path)
             if not text.strip():
                 log.error("no_text_extracted", filename=filename)
                 return 1
-
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
             chunks = split_by_article(
                 text,
@@ -70,7 +90,6 @@ async def ingest() -> int:
 
             # Re-ingesting the same file replaces its chunks rather than duplicating the
             # corpus. The chunks cascade on document delete.
-            existing = await session.scalar(select(Document).where(Document.sha256 == digest))
             if existing:
                 await session.execute(delete(Chunk).where(Chunk.document_id == existing.id))
                 document = existing
