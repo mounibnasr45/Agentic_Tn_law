@@ -1,0 +1,50 @@
+// Angular Material 3 theming. `mat.theme()` emits the --mat-sys-* custom properties that
+// every component and every stylesheet in this app reads, so colours stay consistent and
+// respond to the light/dark scheme without a second stylesheet.
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+
+  // `light dark` defers to the operating system by default. ThemeService overrides this
+  // property on <html> when the user picks an explicit theme — that single property is the
+  // entire dark-mode implementation, because mat.theme() emits its colours via light-dark().
+  color-scheme: light dark;
+
+  @include mat.theme(
+    (
+      color: (
+        // Deep red, echoing the Tunisian flag, rather than the scaffold's default azure —
+        // this is a Tunisian legal product and it should not look like a stock demo.
+        primary: mat.$red-palette,
+        tertiary: mat.$orange-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+body {
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  margin: 0;
+  height: 100%;
+  // Stops iOS Safari inflating font sizes in landscape.
+  -webkit-text-size-adjust: 100%;
+}
+
+// A visible focus ring is the only way a keyboard user can tell where they are. Material
+// styles its own components, but links and native elements need this.
+:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+// Errors are the one snackbar class that must not blend into the background.
+.snack-error {
+  --mdc-snackbar-container-color: var(--mat-sys-error-container);
+  --mdc-snackbar-supporting-text-color: var(--mat-sys-on-error-container);
+  --mat-snack-bar-button-color: var(--mat-sys-on-error-container);
+}

@@ -1,0 +1,53 @@
+<div class="status-layout">
+  <mat-card appearance="outlined">
+    @if (pending()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+
+    <mat-card-header>
+      <mat-card-title>État du service</mat-card-title>
+      <mat-card-subtitle>GET /api/health</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (unreachable()) {
+        <p class="unreachable">
+          <mat-icon color="warn">cloud_off</mat-icon>
+          API injoignable — aucune réponse du service.
+        </p>
+      } @else if (health(); as health) {
+        <dl class="status-grid">
+          <dt>Statut</dt>
+          <dd>
+            <!-- "ok" requires BOTH a reachable database and a non-empty corpus; a running
+                 container with nothing ingested reports "degraded". -->
+            <span class="badge" [class.badge-ok]="health.status === 'ok'">{{ health.status }}</span>
+          </dd>
+
+          <dt>Base de données</dt>
+          <dd>{{ health.database ? 'connectée' : 'injoignable' }}</dd>
+
+          <dt>Modèle chargé</dt>
+          <dd>{{ health.model_loaded ? 'oui' : 'non' }}</dd>
+
+          <dt>Encodeur</dt>
+          <dd><code>{{ health.embedding_model }}</code></dd>
+
+          <dt>Extraits indexés</dt>
+          <dd>{{ health.corpus_chunks }}</dd>
+        </dl>
+
+        @if (health.corpus_chunks === 0) {
+          <p class="warning">
+            Le corpus n'est pas indexé — l'agent ne peut rien citer. Lancez
+            <code>python -m app.cli ingest</code>.
+          </p>
+        }
+      }
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button matButton (click)="refresh()" [disabled]="pending()">Actualiser</button>
+    </mat-card-actions>
+  </mat-card>
+</div>

@@ -1,0 +1,325 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.chat-container {
+  height: 100%;
+  background-color: var(--mat-sys-surface);
+}
+
+.chat-sidenav {
+  width: 17.5rem;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  background-color: var(--mat-sys-surface-container-low);
+}
+
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobile-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  font: var(--mat-sys-label-large);
+  flex: 0 0 auto;
+}
+
+.message-log {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  // The log is the only scrolling region; the composer stays pinned below it.
+  scroll-behavior: smooth;
+  padding: 1.5rem 1rem;
+}
+
+// Answers are long-form prose. Beyond ~70 characters per line the eye loses its place
+// returning to the next line, so the column is capped rather than filling a 1920px screen.
+.message-column {
+  max-width: 48rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.message {
+  padding: 0.875rem 1.125rem;
+  border-radius: 0.875rem;
+  background-color: var(--mat-sys-surface-container);
+  border: 1px solid transparent;
+}
+
+.is-user {
+  background-color: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface));
+  border-color: color-mix(in srgb, var(--mat-sys-primary) 22%, transparent);
+}
+
+.is-failed {
+  border-color: var(--mat-sys-error);
+}
+
+.message-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background-color: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.avatar-user {
+  background-color: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.author {
+  font: var(--mat-sys-label-large);
+}
+
+.timestamp {
+  font: var(--mat-sys-label-small);
+  opacity: 0.6;
+}
+
+.copy-button {
+  margin-left: auto;
+}
+
+.message-body {
+  font: var(--mat-sys-body-medium);
+  // User questions are plain text and keep their line breaks. Assistant answers go through
+  // the markdown pipe, which produces real block elements instead.
+  white-space: pre-wrap;
+}
+
+.markdown {
+  white-space: normal;
+
+  :first-child {
+    margin-top: 0;
+  }
+  :last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    margin: 0 0 0.75rem;
+    line-height: 1.6;
+  }
+
+  ul,
+  ol {
+    margin: 0 0 0.75rem;
+    padding-left: 1.5rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font: var(--mat-sys-title-small);
+    margin: 1rem 0 0.5rem;
+  }
+
+  code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.875em;
+    padding: 0.1em 0.35em;
+    border-radius: 0.25rem;
+    background-color: var(--mat-sys-surface-container-highest);
+  }
+
+  pre {
+    overflow-x: auto;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: var(--mat-sys-surface-container-highest);
+
+    code {
+      padding: 0;
+      background: none;
+    }
+  }
+
+  // Long article references and URLs must not push the bubble wider than its column.
+  a {
+    color: var(--mat-sys-primary);
+    overflow-wrap: anywhere;
+  }
+
+  blockquote {
+    margin: 0 0 0.75rem;
+    padding-left: 0.75rem;
+    border-left: 3px solid var(--mat-sys-outline-variant);
+    opacity: 0.9;
+  }
+
+  table {
+    border-collapse: collapse;
+    display: block;
+    overflow-x: auto;
+  }
+
+  th,
+  td {
+    border: 1px solid var(--mat-sys-outline-variant);
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+.message-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-small);
+
+  mat-icon {
+    font-size: 1.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+}
+
+.message-meta {
+  margin-top: 0.5rem;
+  font: var(--mat-sys-label-small);
+  opacity: 0.55;
+}
+
+.citations {
+  margin-top: 0.875rem;
+
+  summary {
+    cursor: pointer;
+    font: var(--mat-sys-label-large);
+    color: var(--mat-sys-primary);
+    margin-bottom: 0.5rem;
+  }
+}
+
+// ── pending indicator ──────────────────────────────────────────────────────────────────
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.thinking-label {
+  margin-left: 0.4rem;
+  font: var(--mat-sys-body-small);
+  opacity: 0.7;
+}
+
+.dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background-color: var(--mat-sys-primary);
+  animation: pulse 1.2s ease-in-out infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  &:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-0.15rem);
+  }
+}
+
+// Respect a user who has asked the OS to reduce motion — the bouncing dots and smooth
+// scrolling are exactly the kind of thing that setting exists for.
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+    opacity: 0.6;
+  }
+  .message-log {
+    scroll-behavior: auto;
+  }
+}
+
+// ── empty state ────────────────────────────────────────────────────────────────────────
+.empty-state {
+  margin: 3rem auto 0;
+  max-width: 34rem;
+  text-align: center;
+
+  h2 {
+    font: var(--mat-sys-headline-small);
+    margin: 0.5rem 0;
+  }
+
+  p {
+    font: var(--mat-sys-body-medium);
+    opacity: 0.75;
+    margin: 0 0 1.5rem;
+  }
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  opacity: 0.35;
+}
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+// ── composer ───────────────────────────────────────────────────────────────────────────
+.composer-bar {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem 0.875rem;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  background-color: var(--mat-sys-surface);
+}
+
+.disclaimer {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font: var(--mat-sys-label-small);
+  opacity: 0.6;
+}

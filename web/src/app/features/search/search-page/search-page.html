@@ -1,0 +1,79 @@
+<div class="search-layout">
+  <mat-card appearance="outlined" class="search-controls">
+    <mat-card-header>
+      <mat-card-title>Explorateur de recherche</mat-card-title>
+      <mat-card-subtitle>
+        Récupération seule, sans LLM — les extraits bruts que le retriever renvoie
+        réellement, avec leurs scores.
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline" class="query-field">
+          <mat-label>Requête</mat-label>
+          <input matInput formControlName="query" placeholder="Que dit l'article 258 ?" />
+        </mat-form-field>
+
+        <div class="knobs">
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre de résultats</mat-label>
+            <input matInput type="number" formControlName="topK" min="1" max="50" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Stratégie de fusion</mat-label>
+            <mat-select formControlName="fusion">
+              @for (strategy of fusionStrategies; track strategy.value) {
+                <mat-option [value]="strategy.value">{{ strategy.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <mat-checkbox formControlName="useServerWeight">
+          Utiliser le poids lexical configuré côté serveur (0.0 — dense seul, le meilleur
+          mesuré)
+        </mat-checkbox>
+
+        @if (!form.controls.useServerWeight.value) {
+          <div class="weight-slider">
+            <!-- A span, not a <label>: the slider's real input is inside <mat-slider>, so
+                 there is no control to wrap or point `for` at. The input references this
+                 via aria-labelledby, which is what actually names it for a screen reader. -->
+            <span id="weight-label" class="weight-label">
+              Poids lexical (BM25) : {{ form.controls.weightBm25.value }}
+            </span>
+            <mat-slider min="0" max="1" step="0.05" discrete>
+              <input matSliderThumb formControlName="weightBm25" aria-labelledby="weight-label" />
+            </mat-slider>
+            <p class="hint">0.0 = dense seul · 1.0 = lexical seul</p>
+          </div>
+        }
+
+        <button matButton="filled" type="submit" [disabled]="form.invalid || pending()">
+          Rechercher
+        </button>
+      </form>
+    </mat-card-content>
+
+    @if (pending()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+  </mat-card>
+
+  @if (response(); as result) {
+    <section class="results">
+      <header class="results-header">
+        <h2>{{ result.results.length }} résultat(s)</h2>
+        <span class="retrieval-type">type de récupération : {{ result.retrieval_type }}</span>
+      </header>
+
+      @for (citation of result.results; track citation.chunk_id) {
+        <app-citation-card [citation]="citation" />
+      } @empty {
+        <p>Aucun extrait ne correspond à cette requête.</p>
+      }
+    </section>
+  }
+</div>

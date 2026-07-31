@@ -1,0 +1,29 @@
+:host {
+  display: block;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.login-layout {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+}
+
+.login-card {
+  width: min(28rem, 100%);
+  overflow: hidden;
+}
+
+mat-card-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1rem;
+}
+
+.submit-button {
+  margin-top: 0.5rem;
+}

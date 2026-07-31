@@ -1,0 +1,14 @@
+{
+  "//": [
+    "Makes `ng serve` behave like production: the dev server proxies /api to the FastAPI",
+    "process so the browser sees ONE origin, exactly as nginx arranges it in the container.",
+    "Without this, development would need CORS enabled and a different API base URL than",
+    "production — two divergences that only ever show up after deploying."
+  ],
+  "/api": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": false,
+    "timeout": 180000
+  }
+}

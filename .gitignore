@@ -26,4 +26,12 @@ coverage.xml
 .pytest_cache/
 .ruff_cache/
 
+# Frontend (web/) — Node toolchain.
+# `dist/` above already covers the Angular build output. package-lock.json is
+# deliberately NOT ignored: CI runs `npm ci`, which requires it and fails without it.
+node_modules/
+# Angular CLI build cache
+.angular/
+*.tsbuildinfo
+
 .DS_Store

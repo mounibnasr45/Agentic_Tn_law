@@ -1,0 +1,11 @@
+# node_modules is reinstalled from the lockfile inside the image. Copying the host's copy
+# would be slow, would defeat layer caching, and can carry platform-specific binaries that
+# do not run on alpine.
+node_modules
+dist
+.angular
+
+# Not needed to build, and .git in particular is large.
+.git
+.vscode
+*.md

@@ -1,0 +1,60 @@
+:host {
+  display: block;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.status-layout {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+mat-card {
+  overflow: hidden;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.5rem;
+  margin: 1rem 0 0;
+
+  dt {
+    font: var(--mat-sys-label-large);
+    opacity: 0.75;
+  }
+
+  dd {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+.badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 1rem;
+  background-color: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font: var(--mat-sys-label-medium);
+}
+
+.badge-ok {
+  background-color: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.unreachable {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.warning {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background-color: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font: var(--mat-sys-body-small);
+}

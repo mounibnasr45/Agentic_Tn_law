@@ -1,0 +1,54 @@
+<!-- Lets a keyboard user jump past the navigation straight to the content. -->
+<a class="skip-link" href="#main">Aller au contenu</a>
+
+<mat-toolbar class="app-toolbar">
+  <a class="app-brand" routerLink="/chat">
+    <!--
+      An inline SVG, NOT the 🇹🇳 emoji. Windows ships no country-flag glyphs, so the emoji
+      renders as the bare letters "TN" — which is exactly what it looked like before.
+    -->
+    <svg class="brand-flag" viewBox="0 0 24 24" role="img" aria-label="Tunisie">
+      <rect width="24" height="24" rx="4" fill="#E70013" />
+      <circle cx="12" cy="12" r="6.4" fill="#fff" />
+      <path
+        d="M15 12a3.4 3.4 0 1 1-2.8-3.35 2.75 2.75 0 1 0 0 6.7A3.4 3.4 0 0 1 15 12z"
+        fill="#E70013"
+      />
+      <path
+        d="m13.05 12 1 .74-.38-1.2 1-.74h-1.24L13.05 9.6l-.38 1.2h-1.24l1 .74-.38 1.2z"
+        fill="#E70013"
+      />
+    </svg>
+    <span class="brand-text">Agent Juridique Tunisien</span>
+  </a>
+
+  @if (store.isAuthenticated()) {
+    <nav class="app-nav" aria-label="Navigation principale">
+      <a mat-button routerLink="/chat" routerLinkActive="active-link">Discussion</a>
+      <a mat-button routerLink="/search" routerLinkActive="active-link">Recherche</a>
+      <a mat-button routerLink="/status" routerLinkActive="active-link">État</a>
+    </nav>
+  }
+
+  <span class="app-spacer"></span>
+
+  <button
+    matIconButton
+    [matTooltip]="themeLabel()"
+    [attr.aria-label]="themeLabel()"
+    (click)="theme.cycle()"
+  >
+    <mat-icon>{{ themeIcon() }}</mat-icon>
+  </button>
+
+  @if (store.user(); as user) {
+    <span class="app-user">{{ user.email }}</span>
+    <button matIconButton matTooltip="Se déconnecter" aria-label="Se déconnecter" (click)="logout()">
+      <mat-icon>logout</mat-icon>
+    </button>
+  }
+</mat-toolbar>
+
+<main id="main" class="app-content">
+  <router-outlet />
+</main>

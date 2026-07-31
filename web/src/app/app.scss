@@ -1,0 +1,97 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  // Pin the shell to the viewport so only the chat log scrolls, never the whole page.
+  // dvh, not vh: on mobile browsers vh includes the collapsing address bar, which leaves
+  // the composer hidden below the fold until the user scrolls.
+  height: 100dvh;
+}
+
+.skip-link {
+  position: absolute;
+  left: -100vw;
+  z-index: 10;
+
+  // Only visible once focused — the standard pattern for a bypass link.
+  &:focus {
+    left: 0.5rem;
+    top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    background-color: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+  }
+}
+
+.app-toolbar {
+  gap: 0.25rem;
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  background-color: var(--mat-sys-surface-container);
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.brand-flag {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+}
+
+.brand-text {
+  font: var(--mat-sys-title-medium);
+}
+
+.app-nav {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: 1rem;
+}
+
+.active-link {
+  background-color: color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
+}
+
+.app-spacer {
+  flex: 1 1 auto;
+}
+
+.app-user {
+  font: var(--mat-sys-body-small);
+  opacity: 0.85;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  // min-height:0 is required for a flex child to be allowed to shrink and scroll its own
+  // content. Without it the chat log grows the page instead of scrolling inside itself.
+  min-height: 0;
+  display: flex;
+}
+
+@media (max-width: 900px) {
+  .app-user {
+    display: none;
+  }
+  .app-nav {
+    margin-left: 0.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  // The brand mark alone still identifies the app once space is tight.
+  .brand-text {
+    display: none;
+  }
+}

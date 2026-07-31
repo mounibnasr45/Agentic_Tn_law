@@ -1,0 +1,63 @@
+# Serves the built Angular app and proxies the API, so the browser only ever sees one
+# origin. That is what removes CORS from this project entirely and means the same image
+# runs locally and on Render with no rebuild.
+#
+# The nginx image renders this file at container start, substituting ${API_HOSTPORT}.
+# NGINX_ENVSUBST_FILTER (set in the Dockerfile) restricts substitution to API_* names —
+# without that restriction, envsubst would also eat nginx's own $uri, $host and
+# $remote_addr, silently replacing them with empty strings and breaking try_files.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Angular's output is already minified; gzip roughly halves it again over the wire.
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    location /api/ {
+        # NO trailing slash. With one, nginx would strip the /api prefix before forwarding,
+        # and every route would 404 — FastAPI mounts its routers AT /api (see app/main.py).
+        #
+        # host:port rather than a full URL, because Render assigns the backend's port
+        # dynamically via $PORT (app/run.py reads it) and render.yaml can only inject the
+        # pair through `fromService: property: hostport`. The scheme is fixed here.
+        proxy_pass http://${API_HOSTPORT};
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # nginx defaults to 60s. A single /api/ask is retrieval plus an LLM round trip and
+        # can exceed that, and the default would turn a slow-but-successful answer into a
+        # 504 that looks like a backend bug.
+        proxy_read_timeout 180s;
+        proxy_send_timeout 180s;
+    }
+
+    # Fingerprinted build artefacts (main-RMITIB5T.js) can never change under a given name.
+    location ~* \.(?:js|css|woff2?|ttf|png|jpe?g|gif|svg|ico)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # index.html must NEVER be cached: it is the file that names the current hashed bundles,
+    # so a stale copy pins the browser to a deployment that no longer exists.
+    location = /index.html {
+        add_header Cache-Control "no-store, must-revalidate";
+    }
+
+    # Client-side routing. A hard refresh on /chat/<uuid> asks nginx for a path that does not
+    # exist on disk; hand back index.html and let the Angular router resolve it.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
