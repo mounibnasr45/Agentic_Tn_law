@@ -20,7 +20,13 @@ from typing import Literal
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerifyMismatchError
+
+try:
+    from argon2.exceptions import InvalidHashError, VerifyMismatchError
+except ImportError:  # pragma: no cover - argon2-cffi compatibility shim
+    from argon2.exceptions import InvalidHash, VerifyMismatchError
+
+    InvalidHashError = InvalidHash
 
 from app.core.config import get_settings
 
