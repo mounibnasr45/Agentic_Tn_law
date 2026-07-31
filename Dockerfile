@@ -1,6 +1,9 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
 
 WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -8,22 +11,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-# CPU-only torch. `pip install torch` defaults to the CUDA build and drags in ~2GB of
-# NVIDIA wheels that can never be used on a CPU-only host. Installing it first, from
-# the CPU index, means the requirements.txt resolve below finds torch already
-# satisfied. Multi-stage build follows in P7.
+# Install CPU-only torch first so `-r requirements.txt` does not pull CUDA wheels.
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -r requirements.txt
 
+# Pre-download embedding model during image build
+# This avoids HuggingFace download during container startup.
+RUN python -c "\
+from sentence_transformers import SentenceTransformer; \
+SentenceTransformer('intfloat/multilingual-e5-small') \
+"
+
+# Copy only runtime source. The vector index is rebuilt into Postgres at runtime.
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
 COPY app/ ./app/
-COPY frontend/ ./frontend/
 COPY documents/ ./documents/
 
-EXPOSE 8501
-ENV PYTHONUNBUFFERED=1
 
-# Was `COPY . .`, which baked the committed vector_store/ (a stale 39MB Chroma DB)
-# into every image. Only source and the corpus are copied now; indices are built at
-# runtime, and move to Postgres in P2.
-CMD ["streamlit", "run", "frontend/streamlit_app.py", \
-     "--server.port=8501", "--server.address=0.0.0.0"]
+# `api` must remain the LAST stage. Render's Docker runtime cannot select a build target
+# (no --target flag, no equivalent field in render.yaml) — it always builds whichever stage
+# is last in the file. The frontend is not built here at all: it has its own toolchain and
+# its own image, web/Dockerfile.
+FROM base AS api
+
+EXPOSE 8000
+CMD ["python", "-m", "app.run"]

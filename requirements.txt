@@ -38,10 +38,13 @@ langchain-openai>=0.2.0
 #                              meaningless and the golden set's expected_article
 #                              uncomputable.
 
-streamlit
 duckduckgo-search
 tiktoken
 
+# Removed with the Angular frontend:
+#   streamlit  - replaced by web/, an Angular 22 SPA served by nginx. The UI is no longer
+#                a Python dependency at all, so it cannot drift into importing app/.
+#
 # Removed in P2:
 #   chromadb   - replaced by Postgres + pgvector. The lexical arm moved to Postgres FTS
 #                and the dense arm to pgvector, so both are now durable. Chroma was the

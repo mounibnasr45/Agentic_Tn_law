@@ -28,5 +28,68 @@ services:
       timeout: 3s
       retries: 10
 
+  migrate:
+    build:
+      context: .
+      target: api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://legal:legal@db:5432/legal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && python -m app.cli ingest"
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      target: api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://legal:legal@db:5432/legal
+      CORS_ORIGINS: http://localhost:8501,http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      start_period: 5m
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    # The Angular SPA behind nginx. Its own build context and toolchain — nothing to do
+    # with the Python image.
+    build:
+      context: ./web
+    # No env_file: this container serves static files and holds no secrets. Anything baked
+    # into a browser bundle is public by definition, so nothing sensitive may go here.
+    environment:
+      # nginx proxies /api to the backend, so the browser only ever talks to localhost:4200.
+      # No cross-origin request is made, which is why CORS_ORIGINS does not need to list
+      # this UI at all. host:port — the nginx template supplies the scheme.
+      API_HOSTPORT: backend:8000
+    ports:
+      - "4200:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   db_data:
