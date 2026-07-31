@@ -8,6 +8,7 @@ setting impossible to override in a test.
 Settings are resolved once via get_settings() and cached. Tests override by
 calling get_settings.cache_clear() after patching the environment.
 """
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     # --- LLM ---
-    openrouter_api_key: str = ""
+    openrouter_api_key: str = os.environ.get("OPENROUTER_API_KEY", "")  
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     agent_llm_model: str = "deepseek/deepseek-chat"
     summary_llm_model: str = "mistralai/mistral-7b-instruct-v0.2"
@@ -124,6 +125,23 @@ class Settings(BaseSettings):
         any user. main.py refuses to start on this in production and shouts in dev.
         """
         return "INSECURE-DEFAULT" in self.jwt_secret
+
+    @field_validator("database_url")
+    @classmethod
+    def _coerce_driver(cls, value: str) -> str:
+        """Accept a bare postgres DSN and add the psycopg3 driver marker.
+
+        Render (and most managed-Postgres providers) hand out a connection string as
+        `postgres://...` or `postgresql://...` — the wire protocol, not a SQLAlchemy URL.
+        Without this, DATABASE_URL from `fromDatabase.connectionString` in render.yaml would
+        need hand-editing on every provider switch. SQLAlchemy's psycopg3 dialect requires
+        the `+psycopg` driver marker explicitly; it will not infer it.
+        """
+        if value.startswith(("postgres://", "postgresql://")) and "+psycopg" not in value:
+            return value.replace("postgres://", "postgresql+psycopg://", 1).replace(
+                "postgresql://", "postgresql+psycopg://", 1
+            )
+        return value
 
     @field_validator("jwt_secret")
     @classmethod

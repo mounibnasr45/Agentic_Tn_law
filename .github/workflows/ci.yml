@@ -23,6 +23,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  frontend:
+    name: Frontend (Angular)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22 LTS, matching web/Dockerfile. Angular 22 also supports 20.19+ and 24,
+          # so a developer on Node 24 locally is fine — but CI and the image agree.
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        # `ci`, not `install`: installs the lockfile exactly and fails if it has drifted
+        # from package.json, rather than quietly resolving something new.
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        # Includes the single-flight refresh regression test — the one that fails if a
+        # concurrent 401 storm is ever allowed to fire more than one /auth/refresh.
+        run: npm test
+
+      - name: Build
+        # Also enforces the production bundle budgets declared in angular.json.
+        run: npm run build
+
   unit:
     name: Lint and unit tests
     runs-on: ubuntu-latest
@@ -143,3 +177,31 @@ jobs:
         # instead of being buried in a log. Fails the build if any arm's hit@5 drops
         # more than 3 points below eval/baseline.json.
         run: python -m eval.ablation --gate
+
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    # The course's needs: pattern (Lesson 6), applied for real: this job cannot start
+    # until every other job has succeeded. A red unit job, a broken migration, or a
+    # regressed hit@5 all block the deploy — there is no path from a failing pipeline to
+    # production.
+    needs: [secrets, frontend, unit, integration, eval]
+    # Deploy on a push to main only — never from a pull_request event (a PR from a fork
+    # could otherwise trigger a production deploy before anyone reviews it) and never from
+    # a push to any other branch.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy hook
+        # Render builds the image itself from the same commit and runs render.yaml's
+        # preDeployCommand (migrate + ingest) before marking the new version live — this
+        # curl only starts that process, it does not wait for it. Auto-deploy is OFF in
+        # render.yaml specifically so this hook is the only thing that can trigger a
+        # deploy, and it only fires after every job above is green.
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL repo secret is not set. Render service" \
+                 "settings -> Deploy Hook -> copy the URL -> repo Settings -> Secrets and" \
+                 "variables -> Actions -> New repository secret."
+            exit 1
+          fi
+          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

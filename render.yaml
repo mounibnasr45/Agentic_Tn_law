@@ -1,0 +1,107 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Two services: the FastAPI backend, and the Angular SPA behind nginx (which proxies /api
+# to the backend over Render's private network, so the browser only ever sees one origin).
+#
+# One-time manual steps this file cannot do for you (Render has no API key in this repo,
+# and none should ever be committed here):
+#   1. render.com -> New -> Blueprint -> point at this repo. Render reads this file.
+#   2. In the "agentic-tn-law-api" service settings, set the two `sync: false` secrets
+#      (JWT_SECRET, OPENROUTER_API_KEY) — see the comments on each below.
+#   3. Settings -> Auto-Deploy -> Off. Deploys are triggered by the `deploy` job in
+#      .github/workflows/ci.yml via a Deploy Hook, gated on tests + the eval regression
+#      gate passing — not on every push, and not before CI has run.
+#   4. Settings -> Deploy Hook -> copy the URL -> add it as a GitHub Actions secret named
+#      RENDER_DEPLOY_HOOK_URL (repo Settings -> Secrets and variables -> Actions).
+
+databases:
+  - name: agentic-tn-law-db
+    databaseName: agentic_tn_law
+    user: legal
+    # NOT "free". Render's free Postgres expires 30 days after creation, then gives a
+    # 14-day grace period, then DELETES THE DATABASE — every user, every conversation,
+    # the whole ingested corpus — with no way back. Fine for a weekend demo; wrong for
+    # anything you intend to keep running. "starter" is the cheapest plan without that
+    # expiry. https://render.com/changelog/free-postgresql-instances-now-expire-after-30-days
+    plan: starter
+
+services:
+  - type: web
+    name: agentic-tn-law-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Multi-stage Dockerfile, `api` is deliberately the LAST stage — Render's Docker
+    # runtime has no --target equivalent, so it always builds whichever stage is last.
+    # See the comment above the `ui` stage in ./Dockerfile before reordering it.
+    plan: starter
+    # `free` (512MB RAM) is genuinely tight here: torch + sentence-transformers +
+    # FastAPI + LangGraph all resident at once, on top of the ~450MB embedding model
+    # baked into the image at build time. Try free first if cost matters more than
+    # headroom — but an OOM-killed container during startup is the symptom to expect,
+    # and the fix is this same plan line, not a code change.
+    healthCheckPath: /api/health
+    # We trigger deploys explicitly from GitHub Actions (see the deploy job) after tests
+    # and the eval gate pass. "commit" would deploy on every push regardless of CI status,
+    # which defeats the point of having a gate at all.
+    autoDeployTrigger: off
+    # Runs after the image builds, before the server starts — and is included in Render's
+    # own deploy-readiness check, so the service is never marked live with a stale or
+    # unmigrated schema. Ingest is idempotent (app/cli.py skips any document whose sha256
+    # AND configured embedding model already match what's indexed), so a redeploy with an
+    # unchanged corpus costs a few DB round trips, not a full re-embedding pass.
+    preDeployCommand: "alembic upgrade head && python -m app.cli ingest"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agentic-tn-law-db
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+      # Arms the startup guard in app/main.py: with ENVIRONMENT=production, a JWT_SECRET
+      # still equal to the committed insecure default makes the container refuse to boot,
+      # rather than silently serving traffic that only looks authenticated.
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: AGENT_LLM_MODEL
+        value: deepseek/deepseek-chat
+      - key: EMBEDDING_MODEL_NAME
+        value: intfloat/multilingual-e5-small
+      - key: HYBRID_WEIGHT_BM25
+        value: "0.0"
+      - key: CORS_ORIGINS
+        # Intentionally minimal. The Angular UI is served by nginx, which proxies /api to
+        # this service, so the browser makes NO cross-origin request and needs no entry
+        # here. This value only matters for a direct API caller during development.
+        value: http://localhost:4200
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_JSON
+        value: "true"
+
+  # The Angular SPA behind nginx. A SECOND billable service — the cheaper alternative is to
+  # mount the built bundle into FastAPI with StaticFiles and run one service, at the cost of
+  # coupling the UI's release cycle to the API's. Separate is the right default; collapse it
+  # if the bill matters more than the separation.
+  - type: web
+    name: agentic-tn-law-web
+    runtime: docker
+    dockerfilePath: ./web/Dockerfile
+    # The build context is web/, so the image never sees the Python source at all.
+    dockerContext: ./web
+    plan: starter
+    # Static files behind nginx — no model, no database pool. This one is genuinely happy
+    # on the smallest plan, unlike the API.
+    healthCheckPath: /
+    autoDeployTrigger: off
+    envVars:
+      - key: API_HOSTPORT
+        # Resolved by Render to the API's INTERNAL host:port on the private network.
+        # It must not be hardcoded: app/run.py binds `int(os.getenv("PORT", "8000"))`, and
+        # Render assigns that port itself — writing :8000 here would proxy into a void.
+        fromService:
+          type: web
+          name: agentic-tn-law-api
+          property: hostport
