@@ -8,76 +8,96 @@ The system follows a **Retrieval-Augmented Generation (RAG)** approach combined 
 
 ```mermaid
 graph TD
-    User([User]) -->|Asks Question| UI[Streamlit App]
-    UI -->|Passes Query| Agent[Legal Agent (LangChain)]
-    
-    subgraph "Agentic Workflow (ReAct)"
-        Agent -->|Thought: Needs Info?| Decision{Decision}
-        Decision -->|Yes: Search Docs| ToolDocs[Tool: Document Search]
-        Decision -->|Yes: Search Web| ToolWeb[Tool: Web Search]
-        Decision -->|No: Answer| LLM[LLM (DeepSeek)]
-    end
-    
-    subgraph "Retrieval System (Hybrid)"
-        ToolDocs -->|Query| Retriever[Hybrid Retriever]
-        Retriever -->|Keyword Search| BM25[BM25 Index]
-        Retriever -->|Semantic Search| VectorDB[ChromaDB / FAISS]
-        BM25 -->|Results| Merger[Merge & Rank]
-        VectorDB -->|Results| Merger
-    end
-    
-    subgraph "Data Ingestion"
-        PDFs[Legal PDFs] -->|Extract Text| Processor[Document Processor]
-        Processor -->|Chunking| Chunks[Text Chunks]
-        Chunks --> BM25
-        Chunks -->|Embeddings| VectorDB
+    User([User]) --> UI["Angular SPA"]
+    UI -->|"same-origin /api"| Nginx["nginx"]
+    Nginx --> API["FastAPI · JWT auth"]
+
+    subgraph agent["Agent · LangGraph"]
+        API --> Graph["create_react_agent"]
+        Graph -->|"native tool call"| Tool["retrieval tool"]
+        Graph --> LLM["DeepSeek via OpenRouter"]
+        Graph <--> Memory[("checkpointer<br/>per user + thread")]
     end
 
-    Merger -->|Top Context| Agent
-    ToolWeb -->|Web Results| Agent
-    Agent -->|Final Answer| UI
-    UI -->|Display| User
+    subgraph retrieval["Hybrid retrieval · one SQL statement"]
+        Tool --> Dense["dense · pgvector<br/>1 - cosine distance"]
+        Tool --> Lexical["lexical · Postgres FTS<br/>ts_rank_cd, french_unaccent"]
+        Dense --> Fusion["align + normalise<br/>weighted or RRF"]
+        Lexical --> Fusion
+    end
+
+    subgraph ingest["Ingestion"]
+        PDFs["Legal PDFs"] --> Chunker["article-aware chunking"]
+        Chunker --> DB[("PostgreSQL + pgvector<br/>chunks · tsvector · embedding")]
+    end
+
+    DB -.-> Dense
+    DB -.-> Lexical
+    Fusion -->|"ranked chunks + scores"| Graph
+    Graph -->|"answer + citations"| API
+    API --> UI
 ```
 
-## 🚀 Deployment
+> The lexical arm is **Postgres full-text search, not an in-memory BM25 index** — that is
+> what makes it durable, shared across replicas, and consistent with writes. And the
+> shipped default is `HYBRID_WEIGHT_BM25=0.0` (dense only), because on this corpus every
+> weighted hybrid measured *worse*: hit@5 0.839 dense vs 0.750 RRF vs 0.732 best weighted.
+> The lexical arm stays in the code and in the ablation so the result can be re-measured,
+> not assumed. See [eval/](eval/).
 
-This project is ready for deployment using Docker.
+## 🚀 Running it
 
 ### Prerequisites
 
-- Docker installed on your machine.
-- API Keys for OpenRouter (or OpenAI if configured).
+- Docker and Docker Compose.
+- A valid `OPENROUTER_API_KEY` in `.env` (copy `.env.example`). If the key is revoked the
+  API returns `OPENROUTER_API_KEY invalide ou révoquée.` rather than an answer.
 
-### 1. Build the Docker Image
-
-```bash
-docker build -t agentic-tn-law .
-```
-
-### 2. Run the Container
-
-You need to pass your API key as an environment variable.
+### Everything at once
 
 ```bash
-docker run -p 8501:8501 -e OPENROUTER_API_KEY="your_key_here" agentic-tn-law
+docker compose up --build
 ```
 
-### 3. Access the App
+This starts Postgres+pgvector, runs the migrations, ingests the corpus, starts the API, and
+serves the Angular UI behind nginx.
 
-Open your browser and go to `http://localhost:8501`.
+| | URL |
+|---|---|
+| **Application** | http://localhost:4200 |
+| API (direct) | http://localhost:8000/api |
+| OpenAPI docs | http://localhost:8000/docs |
+
+nginx proxies `/api` to the backend, so **the browser only ever talks to one origin** —
+there is no CORS configuration in the request path at all.
+
+### Frontend development
+
+```bash
+python -m app.run          # the API on :8000
+cd web && npm ci && npm start   # the UI on :4200, proxying /api to :8000
+```
+
+`web/proxy.conf.json` reproduces nginx's routing in the dev server, so development and
+production have the same origin model rather than diverging.
+
+New to Angular? **[docs/angular-primer.md](docs/angular-primer.md)** explains the framework
+against this codebase specifically — signals via `AuthStore`, DI as the equivalent of
+FastAPI's `Depends()`, and why a zoneless app must keep all rendered state in signals.
 
 ## 📂 Project Structure
 
-- `app.py`: Main Streamlit application.
-- `src/`: Source code for the agent, retriever, and tools.
-- `documents/`: Folder containing the legal PDF documents.
-- `vector_store/`: Persisted embeddings for the search engine.
-- `config.py`: Configuration settings.
+- `app/` — FastAPI service: `api/` (routes, schemas), `domain/` (pure logic, no I/O),
+  `infra/` (Postgres, embeddings), `agent/` (LangGraph), `services/`.
+- `web/` — Angular 22 SPA (Material 3, standalone components, signals), served by nginx.
+- `eval/` — golden set, retrieval metrics, and the ablation that gates CI.
+- `alembic/` — migrations. `documents/` — the corpus PDFs.
 
 ## 🛠️ Technologies
 
-- **Framework**: LangChain, Streamlit
+- **Backend**: FastAPI, SQLAlchemy (async), LangGraph, Alembic
+- **Frontend**: Angular 22, Angular Material 3, RxJS, Vitest
 - **LLM**: DeepSeek (via OpenRouter)
-- **Embeddings**: SentenceTransformers (HuggingFace)
-- **Vector Store**: ChromaDB
-- **Search**: BM25 + Semantic Search (Hybrid)
+- **Embeddings**: `intfloat/multilingual-e5-small` (SentenceTransformers)
+- **Storage & search**: PostgreSQL + pgvector, Postgres FTS (`ts_rank_cd`) for the lexical arm
+- **Auth**: argon2id + PyJWT, refresh-token rotation with replay detection
