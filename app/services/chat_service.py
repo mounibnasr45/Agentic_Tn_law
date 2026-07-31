@@ -4,13 +4,21 @@ import uuid
 from dataclasses import dataclass
 
 from langchain_core.messages import HumanMessage
+from openai import APIConnectionError as OpenAIAPIConnectionError
+from openai import AuthenticationError as OpenAIAuthenticationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.graph import MAX_ITERATIONS, build_agent
 from app.agent.tools import retrieved_chunks
 from app.core.config import get_settings
-from app.core.errors import ConversationNotFound, CorpusNotReady, UpstreamLLMError
+from app.core.errors import (
+    ConversationNotFound,
+    CorpusNotReady,
+    UpstreamLLMAuthenticationError,
+    UpstreamLLMConnectionError,
+    UpstreamLLMError,
+)
 from app.core.logging import get_logger
 from app.domain.models import RetrievedChunk
 from app.domain.ports import Embedder
@@ -96,6 +104,14 @@ class ChatService:
             citations = retrieved_chunks.get([])
 
         except Exception as exc:
+            if isinstance(exc, OpenAIAPIConnectionError):
+                log.warning("agent_connection_failed", conversation_id=str(conversation.id))
+                raise UpstreamLLMConnectionError() from exc
+
+            if isinstance(exc, OpenAIAuthenticationError):
+                log.warning("agent_authentication_failed", conversation_id=str(conversation.id))
+                raise UpstreamLLMAuthenticationError() from exc
+
             # BUG 3. The old run() caught Exception and returned str(e) AS THE ASSISTANT'S
             # ANSWER, so an upstream timeout was rendered to the user as legal advice with a
             # 200 OK. A failure must never be indistinguishable from an answer. We log, wrap

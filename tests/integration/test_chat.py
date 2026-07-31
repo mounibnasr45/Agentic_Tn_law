@@ -5,6 +5,8 @@ run in milliseconds. What is NOT mocked: Postgres, pgvector, the LangGraph check
 the retrieval tool, and the citation rows. The interesting behaviour is all in those.
 """
 import os
+import sys
+import types
 import uuid
 from unittest.mock import patch
 
@@ -14,13 +16,56 @@ from httpx import ASGITransport, AsyncClient
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+from openai import AuthenticationError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.agent.graph import create_checkpointer
 from app.infra.db.models import Chunk, Document
-from app.main import create_app
 from tests.fakes import FakeEmbedder
+
+_postgres_module = types.ModuleType("langgraph.checkpoint.postgres")
+_aio_module = types.ModuleType("langgraph.checkpoint.postgres.aio")
+_psycopg_module = types.ModuleType("psycopg")
+_psycopg_rows_module = types.ModuleType("psycopg.rows")
+_psycopg_pool_module = types.ModuleType("psycopg_pool")
+
+
+class _DummyAsyncPostgresSaver:
+    def __init__(self, pool):
+        self.pool = pool
+
+    async def setup(self):
+        return None
+
+
+class _DummyAsyncConnectionPool:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+    async def open(self):
+        return None
+
+    async def close(self):
+        return None
+
+
+_aio_module.AsyncPostgresSaver = _DummyAsyncPostgresSaver
+_postgres_module.aio = _aio_module
+_psycopg_rows_module.dict_row = object()
+_psycopg_pool_module.AsyncConnectionPool = _DummyAsyncConnectionPool
+_psycopg_module.rows = _psycopg_rows_module
+sys.modules.setdefault("psycopg", _psycopg_module)
+sys.modules.setdefault("psycopg.rows", _psycopg_rows_module)
+sys.modules.setdefault("psycopg_pool", _psycopg_pool_module)
+sys.modules.setdefault("langgraph.checkpoint.postgres", _postgres_module)
+sys.modules.setdefault("langgraph.checkpoint.postgres.aio", _aio_module)
+
+# These two imports must follow the sys.modules stubbing above — app.agent.graph imports
+# langgraph.checkpoint.postgres.aio at module load, so the fakes have to be registered
+# first on any machine where the real packages aren't installed.
+from app.agent.graph import create_checkpointer  # noqa: E402
+from app.main import create_app  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("DATABASE_URL"), reason="no DATABASE_URL; integration tests need Postgres"
@@ -249,6 +294,34 @@ class TestBug3FailuresAreNotAnswers:
             messages = (await conn.execute(text("SELECT count(*) FROM messages"))).scalar_one()
 
         assert messages == 0, "a failed run wrote a message row"
+
+    async def test_openrouter_authentication_failure_returns_a_configuration_error(
+        self, app_and_engine
+    ):
+        app, _ = app_and_engine
+
+        response_stub = type(
+            "ResponseStub",
+            (),
+            {"status_code": 401, "request": None, "headers": {}},
+        )()
+        broken = ScriptedChatModel(
+            fail_with=AuthenticationError(
+                message="User not found.", response=response_stub, body={"error": {}}
+            )
+        )
+
+        async with await _client(app) as client:
+            headers = await _register(client, "alice@tunis.tn")
+
+            with patch("app.agent.graph.ChatOpenAI", return_value=broken):
+                response = await client.post(
+                    "/api/ask", json={"question": "Quelle peine pour un vol ?"}, headers=headers
+                )
+
+        assert response.status_code == 502
+        # Source of truth is UpstreamLLMAuthenticationError.detail in app/core/errors.py.
+        assert response.json()["detail"] == "OPENROUTER_API_KEY invalide ou révoquée."
 
 
 class TestBug4RealCitations:

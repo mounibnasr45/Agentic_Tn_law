@@ -74,6 +74,21 @@ class UpstreamLLMError(DomainError):
     detail = "Le service de génération est indisponible."
 
 
+class UpstreamLLMAuthenticationError(DomainError):
+    # 502, not 500: the app is healthy, but the configured upstream credentials are not.
+    # This is still an upstream failure at the service boundary, and the caller should see
+    # a precise error instead of a generic crash.
+    status_code = status.HTTP_502_BAD_GATEWAY
+    detail = "OPENROUTER_API_KEY invalide ou révoquée."
+
+
+class UpstreamLLMConnectionError(DomainError):
+    # 502, not 500: the app is fine, but the network path to the upstream is broken.
+    # This is distinct from model failure because the remedy is connectivity, not config.
+    status_code = status.HTTP_502_BAD_GATEWAY
+    detail = "Impossible de joindre OpenRouter. Vérifiez le réseau ou l'URL du service."
+
+
 def to_http_exception(error: DomainError) -> HTTPException:
     unauthorized = error.status_code == status.HTTP_401_UNAUTHORIZED
     headers = {"WWW-Authenticate": "Bearer"} if unauthorized else None
