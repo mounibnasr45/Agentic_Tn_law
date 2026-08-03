@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_echo: bool = False
+    # render.yaml's preDeployCommand (`alembic upgrade head && python -m app.cli ingest`)
+    # only exists on paid Render instance types — Free tier supports neither Pre-Deploy
+    # Command nor SSH, so there is no way to run either step out of band. Set this on a
+    # Free-tier deploy to run both at process startup instead, before the app accepts
+    # traffic. Off by default: everywhere else (dev, CI, paid Render) already has the
+    # real preDeployCommand or a developer running these by hand, and startup should not
+    # silently take longer or touch the database in those cases.
+    auto_migrate_on_startup: bool = False
 
     # --- Retrieval ---
     # Candidates pulled from EACH arm before fusion. Higher = less truncation bias in

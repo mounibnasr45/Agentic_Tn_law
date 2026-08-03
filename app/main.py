@@ -8,6 +8,8 @@ and on a 2GB box it quadruples memory for no throughput gain, because the work i
 against Postgres and an LLM, not CPU. Scale with replicas behind a reverse proxy instead.
 Knowing WHY workers is 1 is worth more than setting it to 4.
 """
+import asyncio
+import sys
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -52,6 +54,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "insecure_jwt_secret",
             detail="using the committed development default; set JWT_SECRET before deploying",
         )
+
+    if settings.auto_migrate_on_startup:
+        # Subprocesses, not calling alembic's or app.cli's code in-process: alembic/env.py
+        # calls asyncio.run() at module import time, which raises "cannot be called from a
+        # running event loop" from inside a lifespan that is itself running inside
+        # uvicorn's loop. Shelling out to the exact commands preDeployCommand would have
+        # run sidesteps that entirely and stays byte-for-byte identical to the paid path.
+        log.info("auto_migrate_starting")
+        migrate = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "alembic", "upgrade", "head"
+        )
+        if await migrate.wait() != 0:
+            raise RuntimeError("alembic upgrade head failed during startup — see logs above")
+
+        log.info("auto_ingest_starting")
+        ingest = await asyncio.create_subprocess_exec(sys.executable, "-m", "app.cli", "ingest")
+        if await ingest.wait() != 0:
+            raise RuntimeError("corpus ingestion failed during startup — see logs above")
+
+        log.info("auto_migrate_complete")
 
     log.info("loading_embedder", model=settings.embedding_model_name)
     app.state.embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
