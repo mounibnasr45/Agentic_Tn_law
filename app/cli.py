@@ -31,13 +31,20 @@ from app.services.ingestion_service import IngestionService
 log = get_logger(__name__)
 
 
-async def ingest() -> int:
+async def ingest(embedder: SentenceTransformerEmbedder | None = None) -> int:
     """Index the corpus files listed in settings.default_document_filenames.
 
     Thin: register() and process() are IngestionService's, so the CLI and the admin upload
     endpoint produce byte-identical chunks. The one behaviour worth preserving from the old
     implementation is the skip — `preDeployCommand` on Render runs this on every push, and
     without it each redeploy re-embeds an unchanged corpus for identical output.
+
+    `embedder` lets a caller that already loaded one pass it in instead of this function
+    loading its own. app/main.py's Free-tier startup path does exactly that: it used to
+    shell out to `python -m app.cli ingest` as a subprocess, which loaded a SECOND copy of
+    torch and the ~450MB model into a fresh process while the parent's own copy (imported
+    at module load, before the embedder is even instantiated) was already resident — on a
+    512MB instance that alone was enough to OOM before a single chunk was embedded.
     """
     settings = get_settings()
 
@@ -50,7 +57,8 @@ async def ingest() -> int:
         )
         return 1
 
-    embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
+    if embedder is None:
+        embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
 
     async with get_sessionmaker()() as session:
         service = IngestionService(session, embedder)

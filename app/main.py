@@ -55,12 +55,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             detail="using the committed development default; set JWT_SECRET before deploying",
         )
 
+    log.info("loading_embedder", model=settings.embedding_model_name)
+    app.state.embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
+
     if settings.auto_migrate_on_startup:
-        # Subprocesses, not calling alembic's or app.cli's code in-process: alembic/env.py
-        # calls asyncio.run() at module import time, which raises "cannot be called from a
-        # running event loop" from inside a lifespan that is itself running inside
-        # uvicorn's loop. Shelling out to the exact commands preDeployCommand would have
-        # run sidesteps that entirely and stays byte-for-byte identical to the paid path.
+        # alembic upgrade runs as a SUBPROCESS: alembic/env.py calls asyncio.run() at
+        # module import time, which raises "cannot be called from a running event loop"
+        # from inside a lifespan that is itself running inside uvicorn's loop. It's cheap
+        # to shell out for — no torch, no model — unlike ingestion below.
         log.info("auto_migrate_starting")
         migrate = await asyncio.create_subprocess_exec(
             sys.executable, "-m", "alembic", "upgrade", "head"
@@ -68,15 +70,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if await migrate.wait() != 0:
             raise RuntimeError("alembic upgrade head failed during startup — see logs above")
 
+        # Ingestion runs IN-PROCESS, reusing app.state.embedder — NOT a subprocess. A
+        # `python -m app.cli ingest` child would load its own copy of torch and the
+        # ~450MB model on top of this process's already-imported copy, which is exactly
+        # what OOM'd a 512MB Free instance before a single chunk was embedded.
         log.info("auto_ingest_starting")
-        ingest = await asyncio.create_subprocess_exec(sys.executable, "-m", "app.cli", "ingest")
-        if await ingest.wait() != 0:
+        from app.cli import ingest as ingest_corpus
+
+        if await ingest_corpus(app.state.embedder) != 0:
             raise RuntimeError("corpus ingestion failed during startup — see logs above")
 
         log.info("auto_migrate_complete")
-
-    log.info("loading_embedder", model=settings.embedding_model_name)
-    app.state.embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
 
     # Conversation memory. setup() is idempotent and creates LangGraph's own tables; doing
     # it here means the container is not "ready" until memory genuinely works, rather than
