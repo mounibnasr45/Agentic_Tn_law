@@ -51,10 +51,28 @@ class Document(Base):
     # and metadata.create_all() then produces a schema that silently DISAGREES with the
     # migration. Anything inserting outside the ORM (psql, a data fix, a bulk load) hits
     # a NOT NULL violation on a column that was supposed to have a default.
+    # pending -> processing -> indexed | failed. The admin screen renders this directly,
+    # so "failed" must be a real terminal state rather than a row that silently stays
+    # "processing" forever after a crash.
     status: Mapped[str] = mapped_column(String(32), server_default="pending")
     # Bumped on every reindex. The response cache keys on it, so a reindex cannot serve
     # answers grounded in a corpus that no longer exists.
     corpus_version: Mapped[int] = mapped_column(Integer, server_default="1")
+
+    # LIVE PROGRESS, IN THE DATABASE AND NOT IN MEMORY.
+    #
+    # The obvious implementation is a module-level dict of {document_id: progress}. It is
+    # wrong here for three reasons that all bite on a free host: a dyno that spins down
+    # mid-ingest loses the progress of work that is still half-committed; a second worker
+    # cannot see the first worker's dict, so the admin screen shows progress only if the
+    # poll happens to land on the right process; and a module-level mutable is the exact
+    # shape of bug 2. Two integers on the row cost nothing and have none of those problems.
+    chunks_total: Mapped[int] = mapped_column(Integer, server_default="0")
+    chunks_done: Mapped[int] = mapped_column(Integer, server_default="0")
+    # Populated only when status == "failed". Shown to the admin, so it must be the reason
+    # ("no text extracted from PDF"), never a raw traceback.
+    error: Mapped[str | None] = mapped_column(Text)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -125,6 +143,19 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(256))  # argon2id
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    # Corpus ingestion is destructive: uploading a document re-chunks and re-embeds, and
+    # replacing the corpus changes every future answer the system gives. That is not a
+    # thing any registered account should be able to do on a public URL.
+    #
+    # server_default="false" so the column is false in the DDL too — a Python-side default
+    # would leave the migration with no default at all, and any INSERT outside the ORM
+    # (psql, a data fix) would then hit a NOT NULL violation. The same trap documented on
+    # Document.status.
+    #
+    # Granted only by `python -m app.cli grant-admin <email>`. There is deliberately no
+    # "first user becomes admin" rule and no self-service path: on a public deployment the
+    # first registration is whoever finds the URL first.
+    is_admin: Mapped[bool] = mapped_column(Boolean, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

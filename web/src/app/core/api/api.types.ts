@@ -25,6 +25,12 @@ export interface TokenPair {
 export interface User {
   id: string;
   email: string;
+  /**
+   * Drives whether the admin navigation renders. NOT a security control — the boundary is
+   * get_current_admin() in app/api/deps.py, re-checked on every admin request. This only
+   * stops a non-admin being shown a link that would 403.
+   */
+  is_admin: boolean;
 }
 
 export interface Credentials {
@@ -63,6 +69,7 @@ export interface AskResponse {
   conversation_id: string;
   answer: string;
   citations: Citation[];
+  trace: AgentTrace;
 }
 
 export interface ConversationSummary {
@@ -135,3 +142,133 @@ export const CONSTRAINTS = {
   /** AskRequest.question */
   question: { minLength: 3, maxLength: 2000 },
 } as const;
+
+// ---------------------------------------------------------------------------
+// Admin  <- app/api/schemas/admin.py
+// ---------------------------------------------------------------------------
+
+/** pending -> processing -> indexed | failed */
+export type DocumentStatus = 'pending' | 'processing' | 'indexed' | 'failed';
+
+export interface AdminDocument {
+  id: string;
+  title: string;
+  status: DocumentStatus;
+  chunks_total: number;
+  chunks_done: number;
+  corpus_version: number;
+  error: string | null;
+  created_at: string;
+  indexed_at: string | null;
+  /**
+   * 0..1, computed SERVER-side. Dividing chunks_done by chunks_total here would produce
+   * NaN for every document in "pending" (chunks_total is 0 until chunking finishes), and
+   * every document passes through pending.
+   */
+  progress: number;
+}
+
+export interface CorpusStatus {
+  documents: AdminDocument[];
+  total_chunks: number;
+  embedding_model: string;
+  /** True while any document is still pending or processing — drives the poll loop. */
+  is_ingesting: boolean;
+}
+
+export interface UploadAccepted {
+  document: AdminDocument;
+  /** False when the bytes were already indexed with the current encoder. */
+  processing: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Agent trace  <- app/api/schemas/conversation.py
+// ---------------------------------------------------------------------------
+
+export interface TraceResult {
+  article_number: string | null;
+  score: number;
+  rank: number;
+}
+
+export interface TraceStep {
+  kind: 'retrieval' | 'reflection' | 'answer';
+  label: string;
+  /** The query the AGENT composed — usually not the sentence the user typed. */
+  query: string | null;
+  results: TraceResult[];
+  detail: string | null;
+}
+
+export interface AgentTrace {
+  steps: TraceStep[];
+  iterations_used: number;
+  max_iterations: number;
+  /** True when the reflection checkpoint caught an undefined legal term and re-retrieved. */
+  regrounded: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Chat streaming  <- POST /api/ask/stream, app/api/routes/chat.py
+// ---------------------------------------------------------------------------
+
+/**
+ * NDJSON, one of these per line. `step` arrives the instant the agent records it — the
+ * whole reason this endpoint exists instead of just POSTing to /ask — `final` carries
+ * exactly what /ask returns in one shot, and `error` is a run-time failure that arrives
+ * in-band because the HTTP status (200) is already committed by the time the agent can
+ * fail (see app/services/chat_service.py's stream_answer docstring).
+ */
+export type ChatStreamEvent =
+  | { event: 'step'; data: TraceStep }
+  | { event: 'final'; data: AskResponse }
+  | { event: 'error'; data: { message: string } };
+
+// ---------------------------------------------------------------------------
+// Evaluation  <- app/api/schemas/evaluation.py
+// ---------------------------------------------------------------------------
+
+export interface AblationArm {
+  name: string;
+  arm: 'dense' | 'hybrid' | 'lexical' | 'rrf';
+  hit_at_1: number;
+  hit_at_3: number;
+  hit_at_5: number;
+  hit_at_10: number;
+  mrr: number;
+  ndcg_at_10: number;
+}
+
+export interface GoldenSetInfo {
+  questions: number;
+  sources: string[];
+  /** 1/questions — the honest error bar on every metric on the page. */
+  one_question_worth: number;
+}
+
+export interface EncoderComparison {
+  before_model: string;
+  before_max_tokens: number;
+  before_hit_at_1: number;
+  before_hit_at_5: number;
+  before_mrr: number;
+  after_model: string;
+  after_max_tokens: number;
+  after_hit_at_1: number;
+  after_hit_at_5: number;
+  after_mrr: number;
+  truncated_chunks: number;
+  total_chunks: number;
+  dropped_token_pct: number;
+}
+
+export interface EvaluationResponse {
+  model: string;
+  corpus_chunks: number;
+  arms: AblationArm[];
+  best_arm: string;
+  deployed_weight_bm25: number;
+  golden_set: GoldenSetInfo;
+  encoder_fix: EncoderComparison;
+}

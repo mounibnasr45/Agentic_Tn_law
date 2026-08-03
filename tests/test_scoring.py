@@ -82,3 +82,34 @@ class TestTopKIndices:
 
     def test_empty_corpus_returns_nothing(self):
         assert top_k_indices([], k=5) == []
+
+
+class TestNaNIsNeverPropagated:
+    """A NaN similarity must not survive normalisation.
+
+    Cosine distance is undefined against a zero-magnitude vector, so pgvector returns NaN
+    and `1 - NaN` is NaN. np.clip PROPAGATES NaN rather than bounding it, so without an
+    explicit guard the value travels all the way to the API — where JSON serialises it as
+    `null` on a field the schema declares non-nullable, and the client renders a blank
+    score several layers from the cause.
+
+    Every comparison against NaN is also False, so a NaN in a ranked list sorts
+    unpredictably: it is not merely an ugly number, it is a silently wrong ordering.
+    """
+
+    def test_nan_becomes_zero(self):
+        out = normalize_semantic(np.array([0.9, np.nan, 0.4]))
+        assert not np.isnan(out).any(), "NaN survived normalisation"
+        assert out[1] == 0.0, "an undefined similarity should score 0, not the nearest bound"
+
+    def test_infinities_are_bounded(self):
+        out = normalize_semantic(np.array([np.inf, -np.inf]))
+        assert out.tolist() == [1.0, 0.0]
+
+    def test_ordinary_values_are_untouched(self):
+        out = normalize_semantic(np.array([0.0, 0.5, 1.0]))
+        assert out.tolist() == [0.0, 0.5, 1.0]
+
+    def test_out_of_range_similarities_are_still_clipped(self):
+        out = normalize_semantic(np.array([-0.3, 1.7]))
+        assert out.tolist() == [0.0, 1.0]

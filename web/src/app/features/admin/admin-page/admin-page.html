@@ -1,0 +1,158 @@
+<div class="admin-page">
+  <header class="page-header">
+    <h1>Corpus juridique</h1>
+    <p class="subtitle">
+      Ajoutez un texte de loi au format PDF. Il est découpé par article, encodé, puis
+      indexé — après quoi l'agent peut le citer.
+    </p>
+  </header>
+
+  <!-- Drop zone -------------------------------------------------------------------- -->
+  <section
+    class="dropzone"
+    [class.dragging]="isDragging()"
+    [class.busy]="uploadPercent() !== null"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+  >
+    <mat-icon class="dropzone-icon">cloud_upload</mat-icon>
+
+    @if (uploadPercent() === null) {
+      <p class="dropzone-title">Glissez un PDF ici</p>
+      <p class="dropzone-hint">ou</p>
+      <!-- The input is visually hidden but still focusable, so the control stays usable
+           from the keyboard — a div with a click handler would not be. -->
+      <button mat-flat-button color="primary" (click)="fileInput.click()">
+        Choisir un fichier
+      </button>
+      <input
+        #fileInput
+        type="file"
+        accept="application/pdf,.pdf"
+        class="file-input"
+        (change)="onFileSelected($event)"
+      />
+    } @else {
+      <p class="dropzone-title">Envoi… {{ uploadPercent() }}%</p>
+      <mat-progress-bar mode="determinate" [value]="uploadPercent()" />
+      <p class="dropzone-hint">L'indexation démarre une fois l'envoi terminé.</p>
+    }
+  </section>
+
+  @if (uploadError()) {
+    <div class="notice error" role="alert">
+      <mat-icon>error</mat-icon>
+      <span>{{ uploadError() }}</span>
+    </div>
+  }
+
+  @if (skippedNotice()) {
+    <div class="notice info" role="status">
+      <mat-icon>info</mat-icon>
+      <span>{{ skippedNotice() }}</span>
+    </div>
+  }
+
+  <!-- Corpus summary --------------------------------------------------------------- -->
+  @if (corpus(); as status) {
+    <section class="summary">
+      <mat-card class="stat">
+        <span class="stat-value">{{ status.total_chunks | number }}</span>
+        <span class="stat-label">fragments indexés</span>
+      </mat-card>
+
+      <mat-card class="stat">
+        <span class="stat-value">{{ status.documents.length }}</span>
+        <span class="stat-label">document(s)</span>
+      </mat-card>
+
+      <!-- Displayed because bug 13 was invisible precisely BECAUSE nothing showed which
+           encoder built the index. A stale index should be readable at a glance. -->
+      <mat-card class="stat encoder">
+        <span class="stat-value encoder-name">{{ status.embedding_model }}</span>
+        <span class="stat-label">encodeur</span>
+      </mat-card>
+    </section>
+  }
+
+  <!-- Documents -------------------------------------------------------------------- -->
+  <section class="documents">
+    <div class="documents-header">
+      <h2>Documents</h2>
+      <button
+        mat-stroked-button
+        (click)="refresh()"
+        [disabled]="isBusy()"
+        matTooltip="Rafraîchir"
+      >
+        <mat-icon>refresh</mat-icon>
+        Rafraîchir
+      </button>
+    </div>
+
+    @if (loadFailed()) {
+      <div class="notice error" role="alert">
+        <mat-icon>cloud_off</mat-icon>
+        <span>Impossible de lire l'état du corpus.</span>
+      </div>
+    } @else if (documents().length === 0) {
+      <p class="empty">Aucun document. Déposez un PDF pour commencer.</p>
+    } @else {
+      <table mat-table [dataSource]="documents()" class="documents-table">
+        <ng-container matColumnDef="title">
+          <th mat-header-cell *matHeaderCellDef>Fichier</th>
+          <td mat-cell *matCellDef="let doc">
+            <span class="doc-title">{{ doc.title }}</span>
+            @if (doc.error) {
+              <span class="doc-error">{{ doc.error }}</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>État</th>
+          <td mat-cell *matCellDef="let doc">
+            <span class="status-pill" [class]="'status-' + doc.status">
+              <mat-icon [class.spinning]="doc.status === 'processing'">
+                {{ statusIcon(doc.status) }}
+              </mat-icon>
+              {{ statusLabel(doc.status) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="progress">
+          <th mat-header-cell *matHeaderCellDef>Progression</th>
+          <td mat-cell *matCellDef="let doc">
+            <!-- `progress` is computed server-side: chunks_total is 0 while pending, so
+                 dividing here would render NaN% for every freshly uploaded document. -->
+            <mat-progress-bar
+              [mode]="doc.status === 'pending' ? 'indeterminate' : 'determinate'"
+              [value]="doc.progress * 100"
+              [class.failed]="doc.status === 'failed'"
+            />
+            <span class="progress-text">{{ doc.progress | percent }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="chunks">
+          <th mat-header-cell *matHeaderCellDef>Fragments</th>
+          <td mat-cell *matCellDef="let doc" class="numeric">
+            {{ doc.chunks_done | number }} / {{ doc.chunks_total | number }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="indexed">
+          <th mat-header-cell *matHeaderCellDef>Indexé le</th>
+          <td mat-cell *matCellDef="let doc">
+            {{ doc.indexed_at ? (doc.indexed_at | date: 'dd/MM/yyyy HH:mm') : '—' }}
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      </table>
+    }
+  </section>
+</div>

@@ -1,35 +1,44 @@
-"""Ingestion CLI.
+"""Ingestion and administration CLI.
 
-    python -m app.cli ingest          # index the corpus into Postgres
-    python -m app.cli search "query"  # sanity-check retrieval from a cold process
+    python -m app.cli ingest                 # index the corpus into Postgres
+    python -m app.cli search "query"         # sanity-check retrieval from a cold process
+    python -m app.cli grant-admin <email>    # allow an account to manage the corpus
 
 The `search` command exists precisely because of bug 1: it runs in a FRESH process that
 never built an index. If it returns hybrid results, retrieval is genuinely durable. The
 old code would have returned dense-only here and said nothing.
+
+`ingest` no longer implements ingestion — it drives IngestionService, the same code the
+admin upload endpoint runs. Two implementations of chunk-and-embed would drift, and the
+eval harness only ever measures whatever the CLI produced.
 """
 import argparse
 import asyncio
-import hashlib
 import sys
-from datetime import UTC, datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.core.runtime import configure_event_loop
-from app.domain.chunking import split_by_article
 from app.domain.retrieval import HybridRetriever
-from app.infra.db.models import Chunk, Document
+from app.infra.db.models import User
 from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
 from app.infra.db.session import dispose_engine, get_sessionmaker
 from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
-from app.infra.pdf import extract_text
+from app.services.ingestion_service import IngestionService
 
 log = get_logger(__name__)
 
 
 async def ingest() -> int:
+    """Index the corpus files listed in settings.default_document_filenames.
+
+    Thin: register() and process() are IngestionService's, so the CLI and the admin upload
+    endpoint produce byte-identical chunks. The one behaviour worth preserving from the old
+    implementation is the skip — `preDeployCommand` on Render runs this on every push, and
+    without it each redeploy re-embeds an unchanged corpus for identical output.
+    """
     settings = get_settings()
 
     missing = settings.missing_documents()
@@ -44,82 +53,58 @@ async def ingest() -> int:
     embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
 
     async with get_sessionmaker()() as session:
+        service = IngestionService(session, embedder)
+
         for filename in settings.default_document_filenames:
             path = settings.documents_dir / filename
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            document = await service.register(filename, path.read_bytes())
 
-            existing = await session.scalar(select(Document).where(Document.sha256 == digest))
+            if not await service.needs_processing(document):
+                log.info("document_already_indexed", filename=filename)
+                await session.commit()  # persist storage_key from register()
+                continue
 
-            # Skip re-embedding entirely when the bytes AND the configured encoder both
-            # match what is already indexed. Without this, `preDeployCommand` on Render
-            # re-chunks and re-embeds the whole corpus on every single push — the PDFs are
-            # committed and unchanged, so every one of those redeploys pays real CPU time
-            # for identical output. It also protects the inverse: if EMBEDDING_MODEL_NAME
-            # changes (as it did for bug 13), a stale chunk's embedding_model no longer
-            # matches settings, so this correctly falls through and re-embeds.
-            if existing is not None and existing.status == "indexed":
-                indexed_model = await session.scalar(
-                    select(Chunk.embedding_model).where(Chunk.document_id == existing.id).limit(1)
-                )
-                if indexed_model == settings.embedding_model_name:
-                    log.info(
-                        "document_already_indexed",
-                        filename=filename,
-                        embedding_model=indexed_model,
-                    )
-                    continue
-
-            text = extract_text(path)
-            if not text.strip():
-                log.error("no_text_extracted", filename=filename)
-                return 1
-
-            chunks = split_by_article(
-                text,
-                source=filename,
-                max_chars=settings.chunk_size,
-                overlap=settings.chunk_overlap,
-            )
-            with_articles = sum(1 for c in chunks if c.article_number)
-            log.info(
-                "document_chunked",
-                filename=filename,
-                chunks=len(chunks),
-                citable_as_article=with_articles,
-            )
-
-            # Re-ingesting the same file replaces its chunks rather than duplicating the
-            # corpus. The chunks cascade on document delete.
-            if existing:
-                await session.execute(delete(Chunk).where(Chunk.document_id == existing.id))
-                document = existing
-                document.corpus_version += 1
-            else:
-                document = Document(title=filename, sha256=digest, status="processing")
-                session.add(document)
-                await session.flush()
-
-            embeddings = await embedder.embed_documents([c.content for c in chunks])
-
-            session.add_all(
-                Chunk(
-                    document_id=document.id,
-                    chunk_index=c.chunk_index,
-                    article_number=c.article_number,
-                    part_index=c.part_index,
-                    content=c.content,
-                    embedding_model=embedder.model_name,
-                    embedding=embeddings[i].tolist(),
-                )
-                for i, c in enumerate(chunks)
-            )
-
-            document.status = "indexed"
-            document.indexed_at = datetime.now(UTC)
+            document_id = document.id
+            # Commit before processing: process() opens its own session and would not see
+            # an uncommitted row.
             await session.commit()
 
-            log.info("document_indexed", filename=filename, chunks=len(chunks))
+            await IngestionService.process(document_id, embedder)
 
+            # process() records failures on the row rather than raising, so the CLI has to
+            # read the outcome back to decide its exit code. Returning 0 on a failed ingest
+            # would let a broken corpus pass a deploy pipeline.
+            await session.refresh(document)
+            if document.status == "failed":
+                log.error("ingest_failed", filename=filename, error=document.error)
+                return 1
+
+    return 0
+
+
+async def grant_admin(email: str) -> int:
+    """Make an existing account an administrator.
+
+    A CLI command, on purpose. The alternatives are worse: "the first account to register
+    becomes admin" is a race with whoever finds a public URL first, and a self-service
+    admin toggle in the API is not a privilege boundary at all. Granting admin requires
+    shell access to the deployment, which is the property we actually want.
+    """
+    async with get_sessionmaker()() as session:
+        user = await session.scalar(select(User).where(User.email == email))
+
+        if user is None:
+            log.error("user_not_found", email=email)
+            return 1
+
+        if user.is_admin:
+            log.info("already_admin", email=email)
+            return 0
+
+        user.is_admin = True
+        await session.commit()
+
+    log.info("admin_granted", email=email)
     return 0
 
 
@@ -156,6 +141,8 @@ def main() -> int:
     sub.add_parser("ingest", help="chunk, embed and index the corpus into Postgres")
     search_parser = sub.add_parser("search", help="query retrieval from a cold process")
     search_parser.add_argument("query")
+    admin_parser = sub.add_parser("grant-admin", help="allow an account to manage the corpus")
+    admin_parser.add_argument("email")
 
     args = parser.parse_args()
     configure_event_loop()
@@ -165,6 +152,8 @@ def main() -> int:
     try:
         if args.command == "ingest":
             return asyncio.run(_with_cleanup(ingest()))
+        if args.command == "grant-admin":
+            return asyncio.run(_with_cleanup(grant_admin(args.email)))
         return asyncio.run(_with_cleanup(search(args.query)))
     except KeyboardInterrupt:
         return 130

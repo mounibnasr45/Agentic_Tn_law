@@ -1,4 +1,5 @@
 """Postgres-backed ChunkRepository: both retrieval arms, as SQL."""
+import math
 from collections.abc import Sequence
 
 import numpy as np
@@ -39,7 +40,16 @@ class PostgresChunkRepository:
             .order_by(distance)  # ascending distance == descending similarity
             .limit(limit)
         )
-        return {chunk_id: float(similarity) for chunk_id, similarity in rows}
+        # math.isnan guard at the SOURCE, not only in normalize_semantic. Cosine distance
+        # is undefined against a zero-magnitude vector, and the RRF fusion path never calls
+        # normalize_semantic at all — it ranks these raw scores directly, where a NaN sorts
+        # unpredictably because every comparison against it is False. Dropping it here means
+        # no fusion strategy can inherit the problem.
+        return {
+            chunk_id: float(similarity)
+            for chunk_id, similarity in rows
+            if similarity is not None and not math.isnan(float(similarity))
+        }
 
     async def lexical_candidates(self, query: str, limit: int) -> dict[int, float]:
         """The lexical arm: OR the query's lexemes, rank by cover density.

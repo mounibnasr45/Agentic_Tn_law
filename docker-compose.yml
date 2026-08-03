@@ -29,6 +29,12 @@ services:
       retries: 10
 
   migrate:
+    # Same image as `backend` — same context, same target, same layers. Naming it
+    # explicitly makes Compose build and export it ONCE and have both services reference
+    # it. Without the shared name, Compose treats them as two images and pays the full
+    # build-and-export cost twice for byte-identical content, which on Docker Desktop for
+    # Windows is the difference between one slow step and two.
+    image: agentic-tn-law-api
     build:
       context: .
       target: api
@@ -43,6 +49,8 @@ services:
     restart: "no"
 
   backend:
+    # Shares the migrate service's image — see the note there.
+    image: agentic-tn-law-api
     build:
       context: .
       target: api

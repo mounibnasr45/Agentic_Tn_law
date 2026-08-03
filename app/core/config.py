@@ -99,10 +99,38 @@ class Settings(BaseSettings):
     agent_request_timeout: int = 120
     agent_verbose: bool = False
 
+    # --- Reflection checkpoint ---
+    # After the agent drafts an answer, one extra LLM call asks whether the draft leans on a
+    # legal term of art that the retrieved articles never defined ("préméditation" appears in
+    # Article 201 but is defined elsewhere). Named terms are retrieved and folded in.
+    #
+    # A KILL SWITCH, not a constant. This costs +1 LLM call on every question and +2 plus a
+    # retrieval when a gap is found. On a free-tier host that is the difference between a
+    # slow answer and a timed-out one, and the fix must be an env var on a dashboard, not a
+    # redeploy — if the upstream gets slow at 2am, someone needs to turn this off in seconds.
+    reflection_enabled: bool = True
+    # Bounds the fan-out per checkpoint. Two undefined terms in one legal answer is already
+    # unusual; more than that and the reflection is almost certainly hallucinating terms to
+    # look useful, which is a cost sink, not a quality gain.
+    reflection_max_terms: int = 2
+    # Deliberately much shorter than agent_request_timeout (120s). The draft already exists
+    # by this point: this call is an ENHANCEMENT racing a deadline, and a user waiting on a
+    # complete answer is better served by shipping it than by waiting two more minutes for a
+    # gloss. On expiry, reflection.py fails open and returns the draft untouched.
+    reflection_timeout: int = 30
+    # Empty = reuse agent_llm_model. Set to a smaller model (e.g. the summary model) to trade
+    # some term-detection recall for latency and cost. Worth measuring before assuming a 7B
+    # model reads French legal prose well enough to spot an undefined term of art.
+    reflection_llm_model: str = ""
+
     # --- Paths ---
     documents_dir: Path = Path("documents")
     vector_store_dir: Path = Path("vector_store")
-    default_document_filenames: list[str] = ["Constitution_fr.pdf", "penal_code.pdf"]
+    default_document_filenames: list[str] = [
+        "Constitution_fr.pdf",
+        "penal_code.pdf",
+        "loi relatif à la liberté de la presse.pdf",
+    ]
 
     # --- Identity (sent to OpenRouter for attribution) ---
     app_title: str = "Agent Juridique Tunisien"
@@ -115,6 +143,15 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def resolved_reflection_model(self) -> str:
+        """The reflection model, defaulting to the agent's own.
+
+        A property rather than a validator default: `agent_llm_model` can itself be
+        overridden by env, and a validator would freeze whatever was set at import time.
+        """
+        return self.reflection_llm_model or self.agent_llm_model
 
     @property
     def jwt_secret_is_the_insecure_default(self) -> bool:

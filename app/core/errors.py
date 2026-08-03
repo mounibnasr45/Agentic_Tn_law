@@ -89,6 +89,37 @@ class UpstreamLLMConnectionError(DomainError):
     detail = "Impossible de joindre OpenRouter. Vérifiez le réseau ou l'URL du service."
 
 
+class NotAnAdministrator(DomainError):
+    # 403, not 404. The opposite call from ConversationNotFound, and deliberately so: there
+    # is exactly one admin area and its existence is not a secret, so hiding it buys
+    # nothing. What must not leak is which ACCOUNTS are admins — and this response says
+    # only "not you", never who is.
+    status_code = status.HTTP_403_FORBIDDEN
+    detail = "Accès réservé aux administrateurs."
+
+
+class NotAPdf(DomainError):
+    status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    detail = "Seuls les fichiers PDF sont acceptés."
+
+
+class UploadTooLarge(DomainError):
+    # 413. The constant is spelled CONTENT_TOO_LARGE in current Starlette; the older
+    # REQUEST_ENTITY_TOO_LARGE name is deprecated and warns on import.
+    status_code = 413
+    detail = "Fichier trop volumineux (maximum 50 Mo)."
+
+
+class EmptyUpload(DomainError):
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Le fichier est vide."
+
+
+class DocumentNotFound(DomainError):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Document introuvable."
+
+
 def to_http_exception(error: DomainError) -> HTTPException:
     unauthorized = error.status_code == status.HTTP_401_UNAUTHORIZED
     headers = {"WWW-Authenticate": "Bearer"} if unauthorized else None

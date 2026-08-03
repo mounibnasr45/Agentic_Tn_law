@@ -1,5 +1,5 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { DatePipe } from '@angular/common';
+import { DatePipe, Location } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -19,11 +19,18 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { map } from 'rxjs';
-import { Citation, ConversationSummary, MessageRole } from '../../../core/api/api.types';
+import {
+  AgentTrace,
+  ChatStreamEvent,
+  Citation,
+  ConversationSummary,
+  MessageRole,
+} from '../../../core/api/api.types';
 import { ChatApi } from '../../../core/api/chat.api';
 import { MarkdownPipe } from '../../../core/markdown/markdown.pipe';
 import { CitationCard } from '../citation-card/citation-card';
 import { ConversationList } from '../conversation-list/conversation-list';
+import { AgentTracePanel } from '../agent-trace/agent-trace';
 import { MessageComposer } from '../message-composer/message-composer';
 
 interface ChatMessage {
@@ -36,10 +43,28 @@ interface ChatMessage {
   role: MessageRole;
   content: string;
   citations: Citation[];
+  /**
+   * What the agent did for THIS answer. Live-only: /conversations/{id} replays messages
+   * without traces, because a stored trace would describe a corpus version that may no
+   * longer exist. Null on user messages and on replayed history.
+   *
+   * For an assistant message still being answered, this starts as an EMPTY trace (not
+   * null) the moment the bubble is created, so `step` events have somewhere to land as
+   * they arrive — see applyStreamEvent().
+   */
+  trace: AgentTrace | null;
+  /** The question that produced this answer, shown against the agent's own query. */
+  question: string;
   latencyMs: number | null;
   createdAt: Date;
   /** The send failed and the server stored nothing — see the comment in `send()`. */
   failed: boolean;
+  /**
+   * True from the moment an assistant bubble is created until its `final` (or `error`)
+   * event arrives. Drives the in-bubble "consulte les textes…" placeholder — distinct from
+   * the page-level `pending` signal, which just disables the composer.
+   */
+  streaming: boolean;
 }
 
 /** Shown on an empty conversation. Real questions the corpus can actually answer. */
@@ -62,6 +87,7 @@ const SUGGESTIONS = [
     CitationCard,
     ConversationList,
     MessageComposer,
+    AgentTracePanel,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './chat-page.html',
@@ -70,6 +96,7 @@ const SUGGESTIONS = [
 export class ChatPage {
   private readonly chatApi = inject(ChatApi);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
   private readonly breakpoints = inject(BreakpointObserver);
 
   /** Bound from the `:conversationId` route param; undefined on a bare /chat. */
@@ -129,7 +156,22 @@ export class ChatPage {
       // PREVIOUS scrollHeight and stop one message short, every time.
       setTimeout(() => {
         const element = this.log()?.nativeElement;
-        element?.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+        if (!element) {
+          return;
+        }
+
+        // The typeof check is not defensive noise. This runs inside a setTimeout, so it
+        // fires OUTSIDE Angular's error handling — in jsdom, where Element.scrollTo is not
+        // implemented, it throws an uncaught TypeError that the test runner reports as a
+        // top-level error rather than a failure. Nine of them per run, attributed to
+        // whichever test happened to be in flight, drowning any real signal.
+        if (typeof element.scrollTo === 'function') {
+          element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+        } else {
+          // jsdom and older browsers: assigning scrollTop is the universally supported
+          // fallback, and it lands in the same place without the smooth animation.
+          element.scrollTop = element.scrollHeight;
+        }
       });
     });
 
@@ -142,44 +184,114 @@ export class ChatPage {
       return;
     }
     this.pending.set(true);
-    this.messages.update((current) => [...current, message('user', question)]);
+
+    const assistantId = crypto.randomUUID();
+    this.messages.update((current) => [
+      ...current,
+      message('user', question),
+      {
+        ...message('assistant', ''),
+        id: assistantId,
+        // Non-null from the start, so a `step` event arriving before the composer even
+        // finishes disabling has somewhere to land.
+        trace: { steps: [], iterations_used: 0, max_iterations: 0, regrounded: false },
+        question,
+        streaming: true,
+      },
+    ]);
 
     if (this.isHandset()) {
       this.drawerOpen.set(false);
     }
 
-    this.chatApi.ask(question, this.conversationId() ?? null).subscribe({
-      next: (response) => {
-        this.messages.update((current) => [
-          ...current,
-          { ...message('assistant', response.answer), citations: response.citations },
-        ]);
+    this.chatApi.askStream(question, this.conversationId() ?? null).subscribe({
+      next: (event) => this.applyStreamEvent(assistantId, event),
+      error: () => this.failSend(assistantId),
+      // No `complete` handler: the 'final' branch of applyStreamEvent() already does
+      // everything completion would — the stream simply ends after it.
+    });
+  }
+
+  /** One line of the NDJSON stream — see ChatApi.askStream and app/api/routes/chat.py. */
+  private applyStreamEvent(assistantId: string, event: ChatStreamEvent): void {
+    switch (event.event) {
+      case 'step':
+        this.messages.update((current) =>
+          current.map((entry) =>
+            entry.id === assistantId && entry.trace
+              ? { ...entry, trace: { ...entry.trace, steps: [...entry.trace.steps, event.data] } }
+              : entry,
+          ),
+        );
+        return;
+
+      case 'final':
+        this.messages.update((current) =>
+          current.map((entry) =>
+            entry.id === assistantId
+              ? {
+                  ...entry,
+                  content: event.data.answer,
+                  citations: event.data.citations,
+                  trace: event.data.trace,
+                  streaming: false,
+                }
+              : entry,
+          ),
+        );
         this.pending.set(false);
 
         if (this.conversationId() === undefined) {
-          // Claim the new id BEFORE navigating. The route effect would otherwise see an id
-          // it has not loaded, fetch the history, and overwrite `messages` — and the
-          // history endpoint returns no citations, so the ones just received would vanish
-          // the instant the URL updated.
-          this.loadedId.set(response.conversation_id);
-          void this.router.navigate(['/chat', response.conversation_id]);
+          // replaceState, NOT router.navigate — and this is the whole reason citations and
+          // traces used to vanish the instant a NEW conversation got its id.
+          //
+          // app.routes.ts declares 'chat' and 'chat/:conversationId' as TWO routes bound to
+          // this same component. Navigating between them is a route CHANGE, so Angular
+          // destroys this component and builds a fresh one. `loadedId` is a field on the
+          // instance, so the guard it exists to provide dies with it: the new component
+          // sees an id it has never loaded, refetches history, and history carries neither
+          // citations nor a trace. The answer's sources disappeared a frame after arriving.
+          //
+          // Location.replaceState rewrites the URL without routing, so the component (and
+          // everything in `messages`) survives. Deep-linking still works: a cold load of
+          // /chat/{id} matches the second route and legitimately loads history.
+          this.loadedId.set(event.data.conversation_id);
+          this.location.replaceState(`/chat/${event.data.conversation_id}`);
         }
         this.reloadConversations();
-      },
-      error: () => {
-        this.pending.set(false);
+        return;
 
-        // The server persists the question and the answer together, AFTER the agent
-        // succeeds (app/services/chat_service.py). A failure means nothing was stored, so
-        // this bubble is marked failed rather than left looking sent — otherwise it would
-        // mysteriously vanish on the next reload.
-        this.messages.update((current) =>
-          current.map((entry, index) =>
-            index === current.length - 1 ? { ...entry, failed: true } : entry,
-          ),
-        );
-      },
+      case 'error':
+        this.failSend(assistantId);
+    }
+  }
+
+  /**
+   * The server persists the question and the answer together, AFTER the agent succeeds
+   * (app/services/chat_service.py). A failure — network, or an in-band `error` event — means
+   * nothing was stored, so the placeholder assistant bubble is dropped entirely and the
+   * user's OWN question is marked failed instead of left looking sent. `retry()` reads
+   * `.content` off whatever is marked failed, which only holds the original question text
+   * on the user bubble — the assistant placeholder's content is still empty at this point.
+   */
+  private failSend(assistantId: string): void {
+    this.pending.set(false);
+    this.messages.update((current) => {
+      const withoutPlaceholder = current.filter((entry) => entry.id !== assistantId);
+      return withoutPlaceholder.map((entry, index) =>
+        index === withoutPlaceholder.length - 1 ? { ...entry, failed: true } : entry,
+      );
     });
+  }
+
+  /**
+   * A reground answer can accumulate citations from several retrieval calls (initial search
+   * plus reflection follow-ups), so `entry.citations` can run into the dozens. The panel only
+   * ever shows the best 5 — sorted by score, not retrieval order, since later reflection
+   * searches are not necessarily less relevant than the first one.
+   */
+  protected topCitations(entry: ChatMessage): Citation[] {
+    return [...entry.citations].sort((a, b) => b.score - a.score).slice(0, 5);
   }
 
   protected retry(id: string): void {
@@ -221,9 +333,15 @@ export class ChatPage {
             // endpoint exposes them, so replayed history shows answers without their
             // sources. Fixing that is a backend change, not something to fake here.
             citations: [],
+            // Same reason as citations: a trace describes one live run against one
+            // corpus version, so replaying a stored one beside old text would be a
+            // claim we cannot stand behind. History shows the answer, not the path.
+            trace: null,
+            question: '',
             latencyMs: entry.latency_ms,
             createdAt: new Date(entry.created_at),
             failed: false,
+            streaming: false,
           })),
         );
         this.loadingHistory.set(false);
@@ -252,8 +370,11 @@ function message(role: MessageRole, content: string): ChatMessage {
     role,
     content,
     citations: [],
+    trace: null,
+    question: '',
     latencyMs: null,
     createdAt: new Date(),
     failed: false,
+    streaming: false,
   };
 }

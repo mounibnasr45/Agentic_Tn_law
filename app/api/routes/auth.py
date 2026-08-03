@@ -69,4 +69,12 @@ async def logout(payload: RefreshRequest, auth: AuthServiceDep) -> None:
 
 @router.get("/me", response_model=UserResponse)
 async def me(user: CurrentUser) -> UserResponse:
-    return UserResponse(id=str(user.id), email=user.email)
+    """The caller's own profile.
+
+    model_validate(), NOT UserResponse(id=..., email=...). The field-by-field form silently
+    drops any field the schema gains later: `is_admin` was added to UserResponse and every
+    response kept reporting the DEFAULT False, so a genuine admin was told they were not
+    one and the corpus navigation never appeared. Nothing failed — the schema was right, the
+    database was right, and the endpoint quietly lied.
+    """
+    return UserResponse.model_validate(user)

@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -26,7 +28,16 @@ class TokenPair(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: str
+    # UUID, not str. User.id is a uuid.UUID and Pydantic v2 does NOT coerce it to str —
+    # model_validate(user) raises `string_type` on a `str` field. Declaring the real type
+    # lets the ORM object validate directly, and JSON serialisation still emits the plain
+    # string the frontend already expects.
+    id: uuid.UUID
     email: EmailStr
+    # Exposed so the SPA can hide the admin navigation from accounts that cannot use it.
+    # A CONVENIENCE, NOT A CONTROL: the privilege boundary is get_current_admin on the
+    # server, which re-checks this on every admin request. Hiding a link stops a confusing
+    # 403, it does not stop anyone from issuing the request by hand.
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}

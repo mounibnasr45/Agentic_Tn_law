@@ -1,0 +1,205 @@
+<div class="eval-page">
+  <header class="page-header">
+    <h1>Évaluation de la recherche</h1>
+    <p class="subtitle">
+      56 questions de référence, quatre métriques de classement, onze configurations
+      comparées. Aucun juge LLM : tout ici est une division, donc reproductible et capable
+      de bloquer une build.
+    </p>
+  </header>
+
+  @if (failed()) {
+    <div class="notice error" role="alert">
+      <mat-icon>cloud_off</mat-icon>
+      <span>Résultats d'évaluation indisponibles.</span>
+    </div>
+  } @else if (data(); as d) {
+    <!-- The headline result: measurement found a bug nothing else could see ----------- -->
+    <mat-card class="headline">
+      <div class="headline-tag">
+        <mat-icon>bug_report</mat-icon>
+        Ce que la mesure a trouvé
+      </div>
+
+      <h2>L'encodeur tronquait silencieusement 38 % du corpus</h2>
+
+      <p class="headline-body">
+        L'ancien encodeur acceptait {{ d.encoder_fix.before_max_tokens }} tokens, alors que
+        les fragments sont découpés à 700 <em>caractères</em> — soit 200 à 250 tokens en
+        français. {{ d.encoder_fix.truncated_chunks }} fragments sur
+        {{ d.encoder_fix.total_chunks }} dépassaient la limite :
+        {{ d.encoder_fix.dropped_token_pct }} % du corpus n'a jamais été encodé. Aucune
+        exception, aucune erreur — seulement un avertissement que personne ne lisait. Seules
+        les métriques l'ont révélé.
+      </p>
+
+      <div class="before-after">
+        <div class="ba-col before">
+          <span class="ba-label">Avant</span>
+          <code>{{ d.encoder_fix.before_model }}</code>
+          <span class="ba-limit">{{ d.encoder_fix.before_max_tokens }} tokens</span>
+          <dl>
+            <div><dt>hit@1</dt><dd>{{ d.encoder_fix.before_hit_at_1 | number: '1.3-3' }}</dd></div>
+            <div><dt>hit@5</dt><dd>{{ d.encoder_fix.before_hit_at_5 | number: '1.3-3' }}</dd></div>
+            <div><dt>MRR</dt><dd>{{ d.encoder_fix.before_mrr | number: '1.3-3' }}</dd></div>
+          </dl>
+        </div>
+
+        <mat-icon class="ba-arrow" aria-hidden="true">arrow_forward</mat-icon>
+
+        <div class="ba-col after">
+          <span class="ba-label">Après</span>
+          <code>{{ d.encoder_fix.after_model }}</code>
+          <span class="ba-limit">{{ d.encoder_fix.after_max_tokens }} tokens</span>
+          <dl>
+            <div><dt>hit@1</dt><dd>{{ d.encoder_fix.after_hit_at_1 | number: '1.3-3' }}</dd></div>
+            <div><dt>hit@5</dt><dd>{{ d.encoder_fix.after_hit_at_5 | number: '1.3-3' }}</dd></div>
+            <div><dt>MRR</dt><dd>{{ d.encoder_fix.after_mrr | number: '1.3-3' }}</dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <p class="headline-gain">
+        <strong>+{{ encoderGain() | percent: '1.1-1' }}</strong> de hit@5, sans changer une
+        ligne de logique de recherche.
+      </p>
+    </mat-card>
+
+    <!-- Corpus / golden set facts ---------------------------------------------------- -->
+    <section class="summary">
+      <mat-card class="stat">
+        <span class="stat-value">{{ d.golden_set.questions }}</span>
+        <span class="stat-label">questions de référence</span>
+      </mat-card>
+      <mat-card class="stat">
+        <span class="stat-value">{{ d.corpus_chunks | number }}</span>
+        <span class="stat-label">fragments indexés</span>
+      </mat-card>
+      <mat-card class="stat">
+        <span class="stat-value">{{ d.arms.length }}</span>
+        <span class="stat-label">configurations comparées</span>
+      </mat-card>
+      <mat-card class="stat">
+        <!-- The error bar, stated up front rather than buried: one flipped question moves
+             every metric by this much, so small gaps between arms mean nothing. -->
+        <span class="stat-value">{{ d.golden_set.one_question_worth | percent: '1.1-1' }}</span>
+        <span class="stat-label">= 1 question (marge de bruit)</span>
+      </mat-card>
+    </section>
+
+    <!-- The ablation ---------------------------------------------------------------- -->
+    <section class="ablation">
+      <h2>Ablation : quelle configuration gagne ?</h2>
+      <p class="section-note">
+        Le poids <em>est</em> la stratégie : 0.0 = dense seul, 1.0 = lexical seul, entre les
+        deux = hybride. Un seul axe produit les trois approches habituellement codées
+        séparément.
+      </p>
+
+      <div class="table-scroll">
+        <table mat-table [dataSource]="arms()" class="ablation-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Configuration</th>
+            <td mat-cell *matCellDef="let arm">
+              <code>{{ arm.name }}</code>
+              @if (isDeployed(arm)) {
+                <span class="tag deployed" matTooltip="C'est cette configuration qui est déployée">
+                  déployé
+                </span>
+              }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="arm">
+            <th mat-header-cell *matHeaderCellDef>Bras</th>
+            <td mat-cell *matCellDef="let arm">
+              <span class="tag arm" [class]="'arm-' + arm.arm">{{ arm.arm }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="hit1">
+            <th mat-header-cell *matHeaderCellDef>hit@1</th>
+            <td mat-cell *matCellDef="let arm" class="num">{{ arm.hit_at_1 | number: '1.3-3' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="hit3">
+            <th mat-header-cell *matHeaderCellDef>hit@3</th>
+            <td mat-cell *matCellDef="let arm" class="num">{{ arm.hit_at_3 | number: '1.3-3' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="hit5">
+            <th mat-header-cell *matHeaderCellDef matTooltip="La métrique qui bloque la CI">
+              hit@5
+            </th>
+            <td mat-cell *matCellDef="let arm" class="num strong">
+              {{ arm.hit_at_5 | number: '1.3-3' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="hit10">
+            <th mat-header-cell *matHeaderCellDef>hit@10</th>
+            <td mat-cell *matCellDef="let arm" class="num">{{ arm.hit_at_10 | number: '1.3-3' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="mrr">
+            <th mat-header-cell *matHeaderCellDef matTooltip="1/rang — pénalise fortement la profondeur">
+              MRR
+            </th>
+            <td mat-cell *matCellDef="let arm" class="num">{{ arm.mrr | number: '1.3-3' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="ndcg">
+            <th mat-header-cell *matHeaderCellDef>nDCG@10</th>
+            <td mat-cell *matCellDef="let arm" class="num">{{ arm.ndcg_at_10 | number: '1.3-3' }}</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="columns"></tr>
+          <tr mat-row *matRowDef="let row; columns: columns" [class.best]="isBest(row)"></tr>
+        </table>
+      </div>
+
+      @if (best(); as b) {
+        <mat-card class="verdict">
+          <mat-icon>insights</mat-icon>
+          <div>
+            <p>
+              <strong>Le dense seul bat toutes les configurations hybrides</strong>
+              ({{ b.hit_at_5 | number: '1.3-3' }} de hit@5). L'hypothèse évidente — que le
+              lexical devrait gagner sur les recherches par numéro d'article — a été testée
+              spécifiquement : dense 5/6, lexical 1/6. Elle ne tient pas.
+            </p>
+            <p class="verdict-punch">
+              C'est donc le dense qui est déployé. Livrer « hybride » parce que le mot sonne
+              mieux serait choisir un système moins bon pour un vocabulaire plus flatteur.
+            </p>
+          </div>
+        </mat-card>
+      }
+    </section>
+
+    <section class="method">
+      <h2>Méthode</h2>
+      <ul>
+        <li>
+          <strong>Pertinence au niveau de l'article.</strong> Un article long est réparti sur
+          plusieurs fragments ; en retrouver un seul signifie que le bon texte de loi a été
+          trouvé. Compter au niveau du fragment pénaliserait nos choix de découpage, pas le
+          classement.
+        </li>
+        <li>
+          <strong>Aucun juge LLM.</strong> Le classement a de vraies métriques. Un juge LLM
+          serait non déterministe, coûterait de l'argent à chaque exécution et ne pourrait
+          pas bloquer une build — on ne fait pas échouer une CI sur un nombre qui fluctue.
+        </li>
+        <li>
+          <strong>Le seuil de régression tolère 3 points, pas zéro.</strong> Avec
+          {{ d.golden_set.questions }} questions, une seule qui bascule déplace le hit@5 de
+          {{ d.golden_set.one_question_worth | percent: '1.1-1' }}. Un seuil à zéro
+          échouerait sur du bruit et serait désactivé en une semaine.
+        </li>
+        <li>
+          <strong>Limites assumées.</strong> 56 questions, c'est peu : un écart de 0,05 vaut
+          environ trois questions. Les questions à articles multiples, les négations et les
+          renvois entre articles ne sont pas représentés.
+        </li>
+      </ul>
+    </section>
+  } @else {
+    <p class="empty">Chargement des résultats…</p>
+  }
+</div>

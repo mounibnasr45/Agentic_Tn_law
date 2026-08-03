@@ -42,6 +42,28 @@ server {
         proxy_send_timeout 180s;
     }
 
+    # /api/ask/stream sends its answer as NDJSON lines over a chunked response, one per
+    # trace step, as they happen — the whole point is that the browser sees them
+    # immediately. nginx's default `proxy_buffering on` collects the ENTIRE upstream
+    # response before forwarding any of it, which would silently turn this back into a
+    # one-shot response. This location is more specific than /api/ above, so nginx matches
+    # it first for this one path.
+    location /api/ask/stream {
+        proxy_pass http://${API_HOSTPORT};
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 180s;
+        proxy_send_timeout 180s;
+
+        proxy_buffering off;
+        proxy_cache off;
+    }
+
     # Fingerprinted build artefacts (main-RMITIB5T.js) can never change under a given name.
     location ~* \.(?:js|css|woff2?|ttf|png|jpe?g|gif|svg|ico)$ {
         expires 1y;

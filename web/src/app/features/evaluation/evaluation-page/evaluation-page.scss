@@ -1,0 +1,315 @@
+.eval-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.page-header {
+  h1 {
+    margin: 0 0 0.4rem;
+    font-size: 1.7rem;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    margin: 0;
+    max-width: 68ch;
+    opacity: 0.75;
+    line-height: 1.6;
+  }
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.section-note {
+  margin: 0 0 1rem;
+  max-width: 70ch;
+  font-size: 0.9rem;
+  opacity: 0.75;
+  line-height: 1.55;
+}
+
+/* --- headline -------------------------------------------------------------------- */
+
+.headline {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  border-left: 4px solid #b3261e;
+}
+
+.headline-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #b3261e;
+  font-weight: 700;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.headline h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.headline-body {
+  margin: 0;
+  max-width: 74ch;
+  line-height: 1.65;
+  opacity: 0.88;
+}
+
+.before-after {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ba-col {
+  flex: 1 1 240px;
+  padding: 0.9rem 1.1rem;
+  border-radius: 10px;
+  background: #8881;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.82rem;
+    word-break: break-all;
+  }
+
+  dl {
+    margin: 0.5rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  dt {
+    opacity: 0.65;
+    font-size: 0.82rem;
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+}
+
+.ba-col.before {
+  border: 1px solid color-mix(in srgb, #b3261e 35%, transparent);
+}
+
+.ba-col.after {
+  border: 1px solid color-mix(in srgb, #2e7d32 40%, transparent);
+
+  dd {
+    color: #2e7d32;
+  }
+}
+
+.ba-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+.ba-limit {
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+.ba-arrow {
+  align-self: center;
+  opacity: 0.4;
+}
+
+.headline-gain {
+  margin: 0;
+  font-size: 1.02rem;
+
+  strong {
+    color: #2e7d32;
+    font-size: 1.2rem;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* --- summary --------------------------------------------------------------------- */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.15rem;
+}
+
+.stat-value {
+  font-size: 1.7rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.65;
+  line-height: 1.35;
+}
+
+/* --- ablation table -------------------------------------------------------------- */
+
+/* The table is the widest element; let IT scroll, never the page body. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.ablation-table {
+  width: 100%;
+  min-width: 780px;
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.82rem;
+  }
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.num.strong {
+  font-weight: 700;
+}
+
+tr.best {
+  background: color-mix(in srgb, #2e7d32 10%, transparent);
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.tag.deployed {
+  margin-left: 0.45rem;
+  background: color-mix(in srgb, #2e7d32 20%, transparent);
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+/* Semantic colour per retrieval arm, so the table can be scanned by shape as well as by
+   reading every row. */
+.arm-dense {
+  background: color-mix(in srgb, #1976d2 18%, transparent);
+  color: #1976d2;
+}
+.arm-hybrid {
+  background: #8882;
+}
+.arm-lexical {
+  background: color-mix(in srgb, #8a5e19 20%, transparent);
+  color: #8a5e19;
+}
+.arm-rrf {
+  background: color-mix(in srgb, #7b5cd6 18%, transparent);
+  color: #7b5cd6;
+}
+
+/* --- verdict --------------------------------------------------------------------- */
+
+.verdict {
+  margin-top: 1rem;
+  padding: 1.15rem 1.3rem;
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  border-left: 4px solid #1976d2;
+
+  p {
+    margin: 0 0 0.6rem;
+    line-height: 1.6;
+    max-width: 74ch;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  mat-icon {
+    color: #1976d2;
+    flex: 0 0 auto;
+  }
+}
+
+.verdict-punch {
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* --- method ---------------------------------------------------------------------- */
+
+.method ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  max-width: 76ch;
+  line-height: 1.6;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: 8px;
+
+  &.error {
+    background: color-mix(in srgb, #b3261e 12%, transparent);
+    color: #b3261e;
+  }
+}
+
+.empty {
+  opacity: 0.65;
+}

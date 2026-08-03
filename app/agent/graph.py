@@ -98,3 +98,40 @@ def build_agent(session: AsyncSession, embedder: Embedder, checkpointer: AsyncPo
         prompt=SYSTEM_PROMPT,
         checkpointer=checkpointer,
     )
+
+
+def build_reflection_llm() -> ChatOpenAI:
+    """A bare LLM for the reflection checkpoint — no tools, no checkpointer, no memory.
+
+    Lives here rather than in reflection.py so that every OpenRouter client in the app is
+    constructed in one place: the attribution headers, retry count and API credentials stay
+    defined once. Duplicating that construction is how one client quietly ends up without a
+    timeout.
+
+    Two settings deliberately differ from the agent's:
+      - timeout: reflection_timeout, not agent_request_timeout. A 120s ceiling makes sense
+        for the call that PRODUCES the answer, and no sense at all for one that decorates an
+        answer already in hand.
+      - max_retries=0: reflection.py's own asyncio.timeout bounds the whole checkpoint, and
+        SDK-level retries would sit inside that budget, burning it on a retry the caller
+        cannot see and then failing anyway. One attempt, fail open, move on.
+
+    Statelessness is not incidental here. This function returns a fresh client per call and
+    holds nothing between requests — the same property that killed bug 2, preserved on the
+    new path rather than reintroduced beside it.
+    """
+    settings = get_settings()
+
+    return ChatOpenAI(
+        model=settings.resolved_reflection_model,
+        api_key=settings.openrouter_api_key,
+        base_url=settings.openrouter_base_url,
+        temperature=settings.llm_temperature,
+        max_tokens=settings.llm_max_tokens,
+        timeout=settings.reflection_timeout,
+        max_retries=0,
+        default_headers={
+            "HTTP-Referer": settings.app_referer,
+            "X-Title": settings.app_title,
+        },
+    )

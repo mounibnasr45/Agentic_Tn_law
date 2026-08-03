@@ -1,3 +1,22 @@
+# THE FRONTEND. `web/.dockerignore` does NOT cover this: it applies only to the frontend
+# service, whose build context is ./web. The backend and migrate services build from `.`,
+# which includes web/ in its entirety — so without these lines, 297MB of node_modules
+# across ~50k small files is packed into the Python image's context and written into a
+# layer. That is what turns "exporting to image" into a 20-minute step on Docker Desktop
+# for Windows, where every one of those files crosses the WSL2 filesystem boundary.
+#
+# The Python image needs nothing from web/ at all: nginx serves the SPA from its own image.
+web/
+
+# The legacy Chroma directory. Chroma was removed in P2 (retrieval moved to Postgres +
+# pgvector), so this is 39MB of dead weight that would otherwise ship in every image.
+vector_store/
+
+# Local eval/test artefacts — regenerated, never read by the running service.
+.ruff_cache
+htmlcov
+scripts/
+
 __pycache__
 *.pyc
 *.pyo

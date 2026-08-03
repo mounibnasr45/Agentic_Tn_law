@@ -1,0 +1,73 @@
+@if (expanded()) {
+  <details class="trace" open>
+    <summary class="trace-summary">
+      <mat-icon>account_tree</mat-icon>
+      <span class="trace-title">Raisonnement de l'agent</span>
+
+      <span class="budget" matTooltip="Appels d'outil utilisés sur le plafond configuré">
+        {{ trace().iterations_used }} / {{ trace().max_iterations }} itérations
+      </span>
+
+      @if (trace().regrounded) {
+        <span class="badge regrounded" matTooltip="Un terme technique n'était pas défini : l'agent a relancé une recherche">
+          réancrée
+        </span>
+      }
+    </summary>
+
+    @if (trace().steps.length === 0) {
+      <p class="trace-empty">
+        L'agent n'a interrogé aucune source pour cette réponse — probablement une question
+        hors du périmètre indexé.
+      </p>
+    }
+
+    <ol class="steps">
+      @for (step of trace().steps; track $index) {
+        <li class="step" [class]="'step-' + step.kind">
+          <div class="step-head">
+            <mat-icon class="step-icon">{{ icon(step.kind) }}</mat-icon>
+            <span class="step-label">{{ step.label }}</span>
+          </div>
+
+          @if (step.query) {
+            <div class="query-block">
+              <!-- The comparison that carries the whole panel: what the user asked versus
+                   what the agent decided to search for. Different strings = a reasoning
+                   step happened between them. -->
+              @if (question() && question() !== step.query) {
+                <div class="query-row user">
+                  <span class="query-tag">Question</span>
+                  <code>{{ question() }}</code>
+                </div>
+              }
+              <div class="query-row agent">
+                <span class="query-tag">Requête de l'agent</span>
+                <code>{{ step.query }}</code>
+              </div>
+            </div>
+          }
+
+          @if (step.results.length > 0) {
+            <ul class="hits">
+              @for (hit of step.results; track hit.rank) {
+                <li class="hit">
+                  <span class="hit-rank">#{{ hit.rank }}</span>
+                  <span class="hit-article">{{ hit.article_number ?? 'préambule' }}</span>
+                  <span class="hit-bar" aria-hidden="true">
+                    <span class="hit-bar-fill" [style.width.%]="barWidth(hit.score)"></span>
+                  </span>
+                  <span class="hit-score">{{ hit.score | number: '1.3-3' }}</span>
+                </li>
+              }
+            </ul>
+          }
+
+          @if (step.detail) {
+            <p class="step-detail">{{ step.detail }}</p>
+          }
+        </li>
+      }
+    </ol>
+  </details>
+}

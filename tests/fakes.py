@@ -21,7 +21,28 @@ class FakeEmbedder:
     above the treason article, and the assertion means something.
     """
 
-    VOCABULARY = ("vol", "peine", "prison", "constitution", "president", "liberte")
+    # Every term a test query is expected to match must be in here. A query containing NONE
+    # of them encodes to the ZERO VECTOR, and cosine similarity against a zero vector is
+    # undefined — pgvector returns NaN, PostgresChunkRepository.dense_candidates drops those
+    # rows as meaningless, and the search legitimately returns nothing. That is correct
+    # behaviour, and it makes a missing vocabulary word look exactly like a retrieval bug.
+    #
+    # The homicide/premeditation terms are here because the reflection checkpoint composes
+    # its OWN follow-up query ("définition de premeditation en droit tunisien"); the test
+    # never gets to choose those words, so the fake has to understand them.
+    VOCABULARY = (
+        "vol",
+        "peine",
+        "prison",
+        "constitution",
+        "president",
+        "liberte",
+        "premeditation",
+        "meurtre",
+        "homicide",
+        "definition",
+        "droit",
+    )
 
     def __init__(
         self, model_name: str = "fake-embedder", dimensions: int = EMBEDDING_DIMENSIONS

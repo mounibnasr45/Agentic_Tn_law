@@ -24,8 +24,23 @@ def normalize_bm25(scores: np.ndarray) -> np.ndarray:
 
 
 def normalize_semantic(scores: np.ndarray) -> np.ndarray:
-    """Clip cosine similarities into [0, 1] so they share BM25's scale."""
-    return np.clip(np.asarray(scores, dtype=float), 0.0, 1.0)
+    """Clip cosine similarities into [0, 1] so they share BM25's scale.
+
+    NaN IS MAPPED TO 0.0, AND np.clip WILL NOT DO IT — clip propagates NaN silently, so a
+    single undefined similarity survives normalisation, wins or loses comparisons
+    unpredictably (every comparison with NaN is False), and is finally serialised into JSON
+    as `null` on a field the schema declares non-nullable. The client then renders a blank
+    score or throws on arithmetic, several layers from the cause.
+
+    Where NaN comes from: pgvector's cosine distance is undefined for a zero vector, so any
+    embedding with zero magnitude yields NaN similarity. Production text never encodes to
+    zero, but "never" is doing a lot of work in that sentence — an empty or
+    out-of-vocabulary input is exactly the case that produces one.
+    """
+    scores = np.asarray(scores, dtype=float)
+    # nan_to_num BEFORE clip: an undefined similarity means "we could not compare these",
+    # which is honestly 0, not the nearest bound.
+    return np.clip(np.nan_to_num(scores, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
 
 
 def combine_scores(

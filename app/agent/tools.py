@@ -17,6 +17,7 @@ from contextvars import ContextVar
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.trace import TraceStep, record
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.domain.models import RetrievedChunk
@@ -60,6 +61,21 @@ def build_retrieval_tool(session: AsyncSession, embedder: Embedder):
             "retrieval_tool_called",
             result_count=len(chunks),
             articles=[c.article_number for c in chunks[:5]],
+        )
+
+        # The trace's most important line. `query` here is what the MODEL decided to search
+        # for, which is rarely the sentence the user typed — showing both side by side is
+        # what distinguishes a reasoning agent from a one-shot vector lookup.
+        record(
+            TraceStep(
+                kind="retrieval",
+                label="Recherche dans le corpus",
+                query=query,
+                results=tuple(
+                    (c.article_number, c.score, c.rank) for c in chunks[:5]
+                ),
+                detail=None if chunks else "Aucun résultat pertinent.",
+            )
         )
 
         if not chunks:

@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth/auth.guards';
+import { adminGuard, authGuard, guestGuard } from './core/auth/auth.guards';
 
 /**
  * `loadComponent` is a lazy import: each page becomes its own chunk, downloaded the first
@@ -38,6 +38,28 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/search/search-page/search-page').then((m) => m.SearchPage),
+  },
+
+  {
+    path: 'admin',
+    title: 'Corpus · Agent Juridique Tunisien',
+    // BOTH guards, in order: authGuard sends a logged-out visitor to /login, adminGuard
+    // sends a logged-in non-admin to /chat. Neither is a security boundary — CurrentAdmin
+    // in app/api/deps.py re-checks is_admin on every request this page makes.
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-page/admin-page').then((m) => m.AdminPage),
+  },
+
+  {
+    // Unauthenticated, like /status: these are published measurements about a public
+    // corpus. Putting them behind a login would defeat the point of publishing them.
+    path: 'evaluation',
+    title: 'Évaluation · Agent Juridique Tunisien',
+    loadComponent: () =>
+      import('./features/evaluation/evaluation-page/evaluation-page').then(
+        (m) => m.EvaluationPage,
+      ),
   },
 
   {

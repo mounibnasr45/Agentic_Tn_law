@@ -182,6 +182,13 @@ def main() -> int:
     parser.add_argument("--detail", metavar="ARM", help="print misses for one arm")
     args = parser.parse_args()
 
+    # The table contains non-ASCII (the "←" best-arm marker, "·" separators). A Windows
+    # console defaults to cp1252 and raises UnicodeEncodeError on print() — AFTER every
+    # arm has been scored, so the entire run is thrown away at the last line. CI is Linux
+    # and UTF-8, so this never fails there and only ever bites local Windows runs.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     configure_event_loop()
     configure_logging(level="WARNING", json_logs=False)
 

@@ -7,6 +7,9 @@ uvicorn[standard]
 pyjwt
 argon2-cffi
 email-validator
+# Required by FastAPI for multipart/form-data — without it, the admin PDF upload route
+# raises at import time, not at request time. FastAPI does not pull it in by default.
+python-multipart
 
 # Persistence (P2)
 sqlalchemy[asyncio]>=2.0
@@ -18,7 +21,11 @@ torch
 numpy
 PyMuPDF
 sentence-transformers
-rank_bm25
+# scikit-learn and tiktoken are not imported by anything under app/, eval/ or tests/ — they
+# are almost certainly transitive requirements of sentence-transformers and langchain that
+# were pinned directly at some point. Left in place deliberately: unlike the two removed
+# below, they ARE installed here, so dropping them is an untested change rather than a
+# confirmed cleanup.
 scikit-learn
 
 # Agent (P5)
@@ -38,8 +45,22 @@ langchain-openai>=0.2.0
 #                              meaningless and the golden set's expected_article
 #                              uncomputable.
 
-duckduckgo-search
 tiktoken
+
+# Removed as vestigial — neither is imported anywhere under app/, eval/ or tests/, and
+# neither was even INSTALLED in the environment where the full 165-test suite passes,
+# which is what proves they are dead rather than merely unreferenced:
+#
+#   rank_bm25        - the in-memory BM25Okapi index it provided is gone. The lexical arm
+#                      is now Postgres full-text search (tsvector + ts_rank_cd), which is
+#                      durable and transactional; that move is what killed bug 1, where a
+#                      cold process silently degraded to dense-only because the in-process
+#                      index vanished on restart. The name survives only in comments that
+#                      explain the old design.
+#   duckduckgo-search - a web-search tool from the pre-P5 agent. The current agent has
+#                      exactly one tool, rechercher_textes_juridiques, and answering from
+#                      the open web is precisely what a citation-grounded legal assistant
+#                      must not do.
 
 # Removed with the Angular frontend:
 #   streamlit  - replaced by web/, an Angular 22 SPA served by nginx. The UI is no longer

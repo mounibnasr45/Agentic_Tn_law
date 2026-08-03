@@ -5,8 +5,6 @@ run in milliseconds. What is NOT mocked: Postgres, pgvector, the LangGraph check
 the retrieval tool, and the citation rows. The interesting behaviour is all in those.
 """
 import os
-import sys
-import types
 import uuid
 from unittest.mock import patch
 
@@ -20,52 +18,15 @@ from openai import AuthenticationError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.infra.db.models import Chunk, Document
-from tests.fakes import FakeEmbedder
-
-_postgres_module = types.ModuleType("langgraph.checkpoint.postgres")
-_aio_module = types.ModuleType("langgraph.checkpoint.postgres.aio")
-_psycopg_module = types.ModuleType("psycopg")
-_psycopg_rows_module = types.ModuleType("psycopg.rows")
-_psycopg_pool_module = types.ModuleType("psycopg_pool")
-
-
-class _DummyAsyncPostgresSaver:
-    def __init__(self, pool):
-        self.pool = pool
-
-    async def setup(self):
-        return None
-
-
-class _DummyAsyncConnectionPool:
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
-
-    async def open(self):
-        return None
-
-    async def close(self):
-        return None
-
-
-_aio_module.AsyncPostgresSaver = _DummyAsyncPostgresSaver
-_postgres_module.aio = _aio_module
-_psycopg_rows_module.dict_row = object()
-_psycopg_pool_module.AsyncConnectionPool = _DummyAsyncConnectionPool
-_psycopg_module.rows = _psycopg_rows_module
-sys.modules.setdefault("psycopg", _psycopg_module)
-sys.modules.setdefault("psycopg.rows", _psycopg_rows_module)
-sys.modules.setdefault("psycopg_pool", _psycopg_pool_module)
-sys.modules.setdefault("langgraph.checkpoint.postgres", _postgres_module)
-sys.modules.setdefault("langgraph.checkpoint.postgres.aio", _aio_module)
-
+# Optional-dependency stubbing lives in conftest.py, which pytest imports before
+# this module — see the explanation there of why setdefault-on-sys.modules was wrong.
 # These two imports must follow the sys.modules stubbing above — app.agent.graph imports
 # langgraph.checkpoint.postgres.aio at module load, so the fakes have to be registered
 # first on any machine where the real packages aren't installed.
 from app.agent.graph import create_checkpointer  # noqa: E402
+from app.infra.db.models import Chunk, Document
 from app.main import create_app  # noqa: E402
+from tests.fakes import FakeEmbedder
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("DATABASE_URL"), reason="no DATABASE_URL; integration tests need Postgres"

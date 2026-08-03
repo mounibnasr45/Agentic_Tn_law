@@ -27,6 +27,11 @@ COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY app/ ./app/
 COPY documents/ ./documents/
+# eval/ ships because /api/evaluation SERVES baseline.json and golden_set.json — the page
+# reads the same artefacts CI gates against, so it cannot drift from the measurement. Two
+# small JSON files and a few pure-Python modules; without them the endpoint 503s in the
+# container while working perfectly on a developer's machine.
+COPY eval/ ./eval/
 
 
 # `api` must remain the LAST stage. Render's Docker runtime cannot select a build target

@@ -26,7 +26,13 @@
     <nav class="app-nav" aria-label="Navigation principale">
       <a mat-button routerLink="/chat" routerLinkActive="active-link">Discussion</a>
       <a mat-button routerLink="/search" routerLinkActive="active-link">Recherche</a>
+      <a mat-button routerLink="/evaluation" routerLinkActive="active-link">Évaluation</a>
       <a mat-button routerLink="/status" routerLinkActive="active-link">État</a>
+      <!-- Hidden from non-admins as a courtesy, not as a control: the enforcement is
+           CurrentAdmin in app/api/deps.py, re-checked on every admin request. -->
+      @if (store.user()?.is_admin) {
+        <a mat-button routerLink="/admin" routerLinkActive="active-link">Corpus</a>
+      }
     </nav>
   }
 

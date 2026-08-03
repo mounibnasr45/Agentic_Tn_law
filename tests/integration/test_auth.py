@@ -136,7 +136,49 @@ class TestProtectedRoutes:
         )
 
         assert response.status_code == 200
-        assert response.json()["email"] == CREDENTIALS["email"]
+        body = response.json()
+        assert body["email"] == CREDENTIALS["email"]
+        # A fresh account is not an admin. Asserted explicitly because the field's DEFAULT
+        # is also False — see the test below for why that distinction has teeth.
+        assert body["is_admin"] is False
+
+    async def test_me_reports_is_admin_from_the_database_not_the_schema_default(self, client):
+        """REGRESSION TEST for a bug that broke the admin UI while every layer looked fine.
+
+        The handler built its response field by field:
+
+            UserResponse(id=str(user.id), email=user.email)
+
+        When `is_admin` was added to UserResponse, that call kept compiling and kept
+        returning 200 — with is_admin silently taking the schema DEFAULT of False. The
+        database said true, the OpenAPI schema advertised the field, the frontend read it
+        correctly, and a real admin was still told they were not one. Nothing errored
+        anywhere; the endpoint simply lied.
+
+        This asserts the value travels from the ROW, which is the only thing that would
+        have caught it.
+        """
+        tokens = await register(client)
+
+        # Promoted the only way the app allows: a direct write, equivalent to
+        # `python -m app.cli grant-admin`. There is deliberately no HTTP route for this.
+        engine = create_async_engine(os.environ["DATABASE_URL"])
+        async with engine.begin() as conn:
+            await conn.execute(
+                text("UPDATE users SET is_admin = true WHERE email = :e"),
+                {"e": CREDENTIALS["email"]},
+            )
+        await engine.dispose()
+
+        response = await client.get(
+            "/api/auth/me", headers={"Authorization": f"Bearer {tokens['access_token']}"}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["is_admin"] is True, (
+            "is_admin came back False for an admin row — the response is not reading the "
+            "database"
+        )
 
     async def test_a_garbage_token_is_rejected(self, client):
         response = await client.get(

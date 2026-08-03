@@ -58,12 +58,21 @@
             </div>
 
             @if (entry.role === 'assistant') {
-              <!--
-                The model answers in markdown. Rendering it as plain text leaves literal
-                **bold** and "1." markers on screen. Sanitised by MarkdownPipe — the content
-                is LLM output and therefore untrusted.
-              -->
-              <div class="message-body markdown" [innerHTML]="entry.content | markdown"></div>
+              @if (entry.streaming && entry.content.length === 0) {
+                <!-- No text yet — the agent may still be searching. Its trace, rendered
+                     below, is what makes this wait legible instead of a blank pause. -->
+                <div class="thinking">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  <span class="thinking-label">consulte les textes…</span>
+                </div>
+              } @else {
+                <!--
+                  The model answers in markdown. Rendering it as plain text leaves literal
+                  **bold** and "1." markers on screen. Sanitised by MarkdownPipe — the
+                  content is LLM output and therefore untrusted.
+                -->
+                <div class="message-body markdown" [innerHTML]="entry.content | markdown"></div>
+              }
             } @else {
               <div class="message-body">{{ entry.content }}</div>
             }
@@ -79,13 +88,27 @@
               </div>
             }
 
+            <!-- The reasoning path, above the sources: the sources are WHAT was cited,
+                 the trace is HOW they were found. -->
+            @if (entry.trace) {
+              <app-agent-trace
+                [trace]="entry.trace"
+                [question]="entry.question"
+                [settled]="!entry.streaming"
+              />
+            }
+
             @if (entry.citations.length > 0) {
               <details class="citations" open>
                 <summary>
-                  {{ entry.citations.length }}
-                  {{ entry.citations.length === 1 ? 'source citée' : 'sources citées' }}
+                  @if (entry.citations.length > 5) {
+                    Top 5 sources citées ({{ entry.citations.length }} au total)
+                  } @else {
+                    {{ entry.citations.length }}
+                    {{ entry.citations.length === 1 ? 'source citée' : 'sources citées' }}
+                  }
                 </summary>
-                @for (citation of entry.citations; track citation.chunk_id) {
+                @for (citation of topCitations(entry); track citation.chunk_id) {
                   <app-citation-card [citation]="citation" />
                 }
               </details>
@@ -113,19 +136,6 @@
               </div>
             </div>
           }
-        }
-
-        @if (pending()) {
-          <article class="message is-pending">
-            <div class="message-head">
-              <span class="avatar" aria-hidden="true"><mat-icon>gavel</mat-icon></span>
-              <span class="author">Agent juridique</span>
-            </div>
-            <div class="thinking">
-              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              <span class="thinking-label">consulte les textes…</span>
-            </div>
-          </article>
         }
       </div>
     </div>
