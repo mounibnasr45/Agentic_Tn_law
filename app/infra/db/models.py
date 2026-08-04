@@ -25,10 +25,15 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-# The encoder's output dimension. multilingual-e5-small and paraphrase-multilingual-
-# MiniLM-L12-v2 are both 384-dim, which is what lets the encoder swap in the bug-13
-# ablation happen without a schema migration.
-EMBEDDING_DIMENSIONS = 384
+# The encoder's output dimension. Vector(n) is fixed-width, so this is schema, not
+# configuration: it must equal Settings.embedding_dimensions, and changing either one
+# requires a migration AND a full re-embed (migration 0005 did exactly that going from the
+# 384-dim local e5 encoder to Gemini truncated at 768).
+#
+# It was 384 through migrations 0001-0004, which is why both local encoders considered so
+# far — multilingual-e5-small and paraphrase-multilingual-MiniLM-L12-v2 — could be swapped
+# for one another during the bug-13 ablation without touching the schema at all.
+EMBEDDING_DIMENSIONS = 768
 
 
 class Base(DeclarativeBase):

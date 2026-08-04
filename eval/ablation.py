@@ -21,7 +21,7 @@ from app.core.logging import configure_logging, get_logger
 from app.core.runtime import configure_event_loop
 from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
 from app.infra.db.session import dispose_engine, get_sessionmaker
-from app.infra.embeddings.onnx_embedder import OnnxEmbedder
+from app.infra.embeddings import create_embedder
 from eval.harness import Config, load_golden_set, run
 
 log = get_logger(__name__)
@@ -97,7 +97,7 @@ async def main_async(args) -> int:
     settings = get_settings()
     questions = load_golden_set()
 
-    embedder = OnnxEmbedder(settings.embedding_model_name, settings.embedding_onnx_variant)
+    embedder = create_embedder(settings)
 
     async with get_sessionmaker()() as session:
         repository = PostgresChunkRepository(session)
@@ -119,7 +119,11 @@ async def main_async(args) -> int:
                         print(f"  MISS  q{d['id']:>2}  expected {d['expected']:<34} "
                               f"got {d['top_3']}")
 
-    table = render_table(rows, settings.embedding_model_name, corpus)
+    # embedder.model_name, NOT settings.embedding_model_name: the latter names only the
+    # local ONNX encoder and is meaningless under the Gemini provider. The baseline has
+    # to record which encoder actually produced these numbers, because the gate compares
+    # against it and swapping encoders invalidates the comparison.
+    table = render_table(rows, embedder.model_name, corpus)
     print("\n" + table + "\n")
 
     summary = os.getenv("GITHUB_STEP_SUMMARY")
@@ -132,7 +136,7 @@ async def main_async(args) -> int:
     if args.write_baseline:
         BASELINE.write_text(
             json.dumps(
-                {"model": settings.embedding_model_name, "corpus_chunks": corpus,
+                {"model": embedder.model_name, "corpus_chunks": corpus,
                  "scores": scores},
                 indent=2,
             ),

@@ -83,6 +83,29 @@ class Settings(BaseSettings):
     #     hit@5  0.500 -> 0.839
     #     MRR    0.364 -> 0.747
     # e5 requires "query: " / "passage: " prefixes; the embedder adds them.
+    # Which embedder app/infra/embeddings/create_embedder() builds: "gemini" or "onnx".
+    #
+    # DEFAULTS TO THE REMOTE ONE, WHICH IS NOT THE ARCHITECTURALLY NICER CHOICE. The local
+    # ONNX encoder needs no network, no API key and no quota — but it peaks at 502MB RSS
+    # against the 512MB ceiling of the only free hosting available, and no amount of
+    # trimming closed that gap (torch removal and a tokenizer swap each cut a large chunk
+    # and it still OOM'd). Moving embeddings out of the process is what makes this
+    # deployable at all. Set EMBEDDING_PROVIDER=onnx, and install onnxruntime + tokenizers,
+    # to go back to embedding locally on a host with real memory.
+    embedding_provider: str = "gemini"
+
+    gemini_api_key: str = ""
+    # Pinned, not "latest": gemini-embedding-2 returns ONE aggregated vector for a
+    # multi-text request instead of one per text, which would quietly index a single
+    # meaningless embedding per batch. See gemini_embedder.py's module docstring.
+    gemini_embedding_model: str = "gemini-embedding-001"
+    # 768 rather than the model's native 3072: Matryoshka truncation costs little quality
+    # and keeps the pgvector column a quarter of the size. Changing this is a schema
+    # change (Vector(n) is fixed-width) AND a full re-embed — see EMBEDDING_DIMENSIONS in
+    # app/infra/db/models.py, which must agree with it.
+    embedding_dimensions: int = 768
+
+    # --- Local ONNX encoder (only when embedding_provider="onnx") ---
     embedding_model_name: str = "intfloat/multilingual-e5-small"
     # Which ONNX export of embedding_model_name to load — see the _ONNX_VARIANTS mapping
     # in app/infra/embeddings/onnx_embedder.py. "int8" (118MB) is the default and fits
@@ -96,16 +119,20 @@ class Settings(BaseSettings):
 
     # 0.0 = dense only, 1.0 = lexical only, in between = weighted hybrid.
     #
-    # DENSE-ONLY IS THE MEASURED BEST, and this default says so. Once the encoder was
-    # fixed, EVERY hybrid weight scored worse than pure dense on the golden set: best
-    # weighted hybrid hit@5 0.732, RRF 0.750, dense 0.839. We expected the lexical arm to
-    # earn its keep on article-number lookups ("que dit l'article 258 ?") and tested that
-    # class specifically — dense 5/6, lexical 1/6. It did not.
+    # DENSE-ONLY IS THE MEASURED BEST, and this default says so. Every hybrid weight
+    # scores worse than pure dense on the golden set, and the gap WIDENED when the encoder
+    # moved to Gemini: dense hit@5 0.982, best weighted hybrid 0.929, RRF 0.804. We
+    # expected the lexical arm to earn its keep on article-number lookups ("que dit
+    # l'article 258 ?") and tested that class specifically. It did not.
+    #
+    # (Under the previous local e5 encoder the same ordering held at lower absolute
+    # numbers — dense 0.821, hybrid 0.786, RRF 0.714 — so this is a property of the corpus
+    # and the query mix, not of one encoder.)
     #
     # The lexical arm and RRF stay in the codebase and in the ablation, because this
-    # result is specific to THIS corpus (712 chunks) and THIS encoder and must be
-    # re-measured before it is trusted anywhere else. Shipping "hybrid" anyway would be
-    # choosing a worse system for a nicer word.
+    # result is specific to THIS corpus (834 chunks) and must be re-measured before it is
+    # trusted anywhere else. Shipping "hybrid" anyway would be choosing a worse system for
+    # a nicer word.
     hybrid_weight_bm25: float = 0.0
 
     # --- Agent ---

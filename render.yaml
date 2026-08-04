@@ -65,10 +65,16 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      # Embeddings run through Gemini rather than a local encoder, and that is a hosting
+      # constraint rather than a preference: the local ONNX encoder peaked at 502MB RSS
+      # against this tier's 512MB, while this peaks at ~230MB. It also turned out to
+      # retrieve better (dense hit@5 0.821 -> 0.982 on the golden set). Set
+      # EMBEDDING_PROVIDER=onnx, and install onnxruntime + tokenizers, to embed locally
+      # on a bigger instance.
+      - key: GEMINI_API_KEY
+        sync: false
       - key: AGENT_LLM_MODEL
         value: deepseek/deepseek-chat
-      - key: EMBEDDING_MODEL_NAME
-        value: intfloat/multilingual-e5-small
       - key: HYBRID_WEIGHT_BM25
         value: "0.0"
       - key: CORS_ORIGINS
@@ -81,10 +87,12 @@ services:
       - key: LOG_JSON
         value: "true"
 
-  # The Angular SPA behind nginx. A SECOND billable service — the cheaper alternative is to
-  # mount the built bundle into FastAPI with StaticFiles and run one service, at the cost of
-  # coupling the UI's release cycle to the API's. Separate is the right default; collapse it
-  # if the bill matters more than the separation.
+  # The Angular SPA behind nginx. A SECOND billable service, AND NO LONGER REQUIRED: the
+  # API image now also contains the built bundle and serves it from the same origin (see
+  # Settings.static_dir), so deleting this service leaves a working deployment on one web
+  # service plus the database. Kept here because separate services are the better shape
+  # when the bill allows it — the UI's release cycle stops being coupled to the API's, and
+  # nginx serves static files far more efficiently than uvicorn does.
   - type: web
     name: agentic-tn-law-web
     runtime: docker

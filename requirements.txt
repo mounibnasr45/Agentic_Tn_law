@@ -19,20 +19,18 @@ alembic>=1.13
 
 numpy
 PyMuPDF
-# Torch-free embedding stack — see app/infra/embeddings/onnx_embedder.py. Replaced
-# `torch` + `sentence-transformers` (which hard-depends on torch): importing torch and
-# loading the ~450MB fp32 e5-small weights already exceeded a 512MB Render Free
-# container before a single request was served. `optimum[onnxruntime]` was considered
-# and rejected: it unconditionally requires torch>=1.11 even for the onnxruntime backend.
-#
-# `tokenizers`, NOT `transformers`. transformers is not needed at all once the tokenizer
-# is loaded from the pre-built tokenizer.json — and avoiding it matters: measured in a
-# 512MB container, transformers' AutoTokenizer.from_pretrained peaked ~105MB higher than
-# tokenizers' Tokenizer.from_file, because it rebuilds the fast tokenizer from
-# sentencepiece on every load.
-onnxruntime
-tokenizers
-huggingface_hub
+# Embeddings, via API rather than a local model — see app/infra/embeddings/. The whole
+# history of this line is a memory budget: torch + sentence-transformers, then torch-free
+# onnxruntime, then onnxruntime without transformers, each cutting a large chunk and each
+# still peaking above the 512MB free-tier ceiling (502MB at the end). An API client is
+# kilobytes.
+google-genai
+
+# NOT LISTED, ON PURPOSE: onnxruntime, tokenizers, huggingface_hub. They are needed only
+# by EMBEDDING_PROVIDER=onnx (app/infra/embeddings/onnx_embedder.py), which is the better
+# design — self-contained, no quota, no per-query network call — and is worth switching
+# back to on any host with more than 512MB. Install those three and set the env var.
+# Keeping them out of this file is precisely what buys the ~300MB.
 # scikit-learn and tiktoken are not imported by anything under app/, eval/ or tests/ — they
 # are almost certainly transitive requirements of langchain that were pinned directly at
 # some point (sentence-transformers, the other likely source, is gone as of the ONNX

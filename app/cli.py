@@ -26,7 +26,7 @@ from app.domain.retrieval import HybridRetriever
 from app.infra.db.models import User
 from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
 from app.infra.db.session import dispose_engine, get_sessionmaker
-from app.infra.embeddings.onnx_embedder import OnnxEmbedder
+from app.infra.embeddings import create_embedder
 from app.services.ingestion_service import IngestionService
 
 log = get_logger(__name__)
@@ -59,7 +59,7 @@ async def ingest(embedder: Embedder | None = None) -> int:
         return 1
 
     if embedder is None:
-        embedder = OnnxEmbedder(settings.embedding_model_name, settings.embedding_onnx_variant)
+        embedder = create_embedder(settings)
 
     async with get_sessionmaker()() as session:
         service = IngestionService(session, embedder)
@@ -120,7 +120,7 @@ async def grant_admin(email: str) -> int:
 async def search(query: str) -> int:
     """Query from a cold process — nothing was indexed in THIS process."""
     settings = get_settings()
-    embedder = OnnxEmbedder(settings.embedding_model_name, settings.embedding_onnx_variant)
+    embedder = create_embedder(settings)
 
     async with get_sessionmaker()() as session:
         repository = PostgresChunkRepository(session)

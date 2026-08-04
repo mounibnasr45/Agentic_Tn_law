@@ -2,11 +2,11 @@
 
     uvicorn app.main:app --workers 1
 
-WORKERS = 1, DELIBERATELY. Each uvicorn worker is a separate process and loads its own
-copy of the embedding model (118MB int8 ONNX by default — see app/infra/embeddings/
-onnx_embedder.py). `--workers 4` on a 512MB free tier wastes most of it for no throughput
-gain, because the work is I/O against Postgres and an LLM, not CPU. Scale with replicas
-behind a reverse proxy instead. Knowing WHY workers is 1 is worth more than setting it to 4.
+WORKERS = 1, DELIBERATELY. The work here is I/O — Postgres, an LLM, and (with the default
+embedding provider) an embeddings API — not CPU, so extra workers buy no throughput while
+each one duplicates the process's memory. That mattered enormously when the encoder ran
+in-process; it still holds now that it does not. Scale with replicas behind a reverse
+proxy instead. Knowing WHY workers is 1 is worth more than setting it to 4.
 """
 import asyncio
 import sys
@@ -26,7 +26,7 @@ from app.core.errors import DomainError, to_http_exception
 from app.core.logging import configure_logging, get_logger, request_id_var
 from app.core.runtime import configure_event_loop
 from app.infra.db.session import dispose_engine
-from app.infra.embeddings.onnx_embedder import OnnxEmbedder
+from app.infra.embeddings import create_embedder
 
 log = get_logger(__name__)
 
@@ -56,10 +56,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             detail="using the committed development default; set JWT_SECRET before deploying",
         )
 
-    log.info("loading_embedder", model=settings.embedding_model_name)
-    app.state.embedder = OnnxEmbedder(
-        settings.embedding_model_name, settings.embedding_onnx_variant
-    )
+    # The embedder logs its own resolved identity once built (which is the one that
+    # matters — see needs_processing's drift guard); this only records the choice.
+    log.info("loading_embedder", provider=settings.embedding_provider)
+    app.state.embedder = create_embedder(settings)
 
     if settings.auto_migrate_on_startup:
         # alembic upgrade runs as a SUBPROCESS: alembic/env.py calls asyncio.run() at
@@ -73,10 +73,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if await migrate.wait() != 0:
             raise RuntimeError("alembic upgrade head failed during startup — see logs above")
 
-        # Ingestion runs IN-PROCESS, reusing app.state.embedder — NOT a subprocess. A
-        # `python -m app.cli ingest` child would load its own copy of the ONNX runtime
-        # and model weights on top of this process's already-loaded copy, doubling
-        # memory for no reason on a container with no headroom to spare.
+        # Ingestion runs IN-PROCESS, reusing app.state.embedder — NOT a subprocess. With
+        # a local encoder a `python -m app.cli ingest` child loaded a second copy of the
+        # runtime and weights on top of this process's, which was enough to OOM a 512MB
+        # instance outright. Sharing the one embedder also guarantees the corpus is
+        # embedded by exactly the encoder that will later query it.
         log.info("auto_ingest_starting")
         from app.cli import ingest as ingest_corpus
 
