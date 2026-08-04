@@ -139,6 +139,17 @@ class Settings(BaseSettings):
 
     # --- Paths ---
     documents_dir: Path = Path("documents")
+
+    # Where the built Angular bundle lives, when this process is also serving it.
+    #
+    # None here, but the Dockerfile sets STATIC_DIR=/app/web_dist because the image
+    # genuinely contains the bundle. So: running from a source checkout serves no SPA
+    # (`ng serve` or nginx does that), while any container built from this repo can serve
+    # both the API and the SPA from one origin. That single-origin case is what makes the
+    # Hugging Face Spaces deployment work at all — one process, one port — and it is
+    # possible only because the frontend calls a relative "/api" (see api-base.ts) and so
+    # does not care which topology is serving it.
+    static_dir: Path | None = None
     vector_store_dir: Path = Path("vector_store")
     default_document_filenames: list[str] = [
         "Constitution_fr.pdf",

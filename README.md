@@ -1,3 +1,19 @@
+---
+title: Agent Juridique Tunisien
+emoji: ⚖️
+colorFrom: red
+colorTo: gray
+sdk: docker
+app_port: 8000
+pinned: false
+license: mit
+---
+
+<!-- The block above is Hugging Face Spaces configuration, not documentation. Spaces reads
+     it from this file to know how to build and expose the container: `sdk: docker` selects
+     the root Dockerfile, and `app_port` must match the port app/run.py binds (8000 by
+     default). GitHub renders it as a table; Spaces would fail to start without it. -->
+
 # 🇹🇳 Agent Juridique Tunisien
 
 An AI-powered legal assistant designed to answer questions based on Tunisian law (Constitution and Penal Code) using a RAG (Retrieval-Augmented Generation) pipeline and an Agentic workflow.

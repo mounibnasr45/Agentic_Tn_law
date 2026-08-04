@@ -13,10 +13,11 @@ import sys
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 
 from app.agent.graph import create_checkpointer
 from app.api.routes import admin, auth, chat, evaluation, health, search
@@ -160,7 +161,47 @@ def create_app() -> FastAPI:
     # Unauthenticated, like /health: published measurements about a public corpus.
     app.include_router(evaluation.router, prefix="/api")
 
+    # LAST, and only when configured. The catch-all route below would shadow every API
+    # path if it were registered first — FastAPI matches in registration order.
+    if settings.static_dir is not None and settings.static_dir.is_dir():
+        _serve_spa(app, settings.static_dir)
+
     return app
+
+
+def _serve_spa(app: FastAPI, root: Path) -> None:
+    """Serve the built Angular bundle from this same process.
+
+    Only the single-container deployment uses this; see Settings.static_dir for why the
+    nginx-fronted topologies leave it unset. Deliberately mirrors the two rules
+    web/nginx.conf.template already encodes, because a second way to serve the same files
+    is a second place for them to drift:
+
+      * a path that does not exist on disk returns index.html, not 404, so a hard refresh
+        on /chat/<uuid> is resolved by the Angular router rather than by the server;
+      * index.html is never cached (it names the current hashed bundles, so a stale copy
+        pins the browser to a deployment that no longer exists) while the fingerprinted
+        bundles beside it are immutable and cached for a year.
+    """
+    root = root.resolve()
+    index = root / "index.html"
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa(full_path: str) -> FileResponse:
+        # An unmatched /api/* path is a genuine 404, not a page. Without this it would
+        # fall through and hand the SPA's HTML to an API client expecting JSON.
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        candidate = (root / full_path).resolve()
+        # `root in parents` is the path-traversal guard: it rejects ../ escapes that
+        # resolve outside the bundle, which would otherwise serve any readable file.
+        if candidate.is_file() and root in candidate.parents:
+            return FileResponse(
+                candidate, headers={"Cache-Control": "public, max-age=31536000, immutable"}
+            )
+
+        return FileResponse(index, headers={"Cache-Control": "no-store, must-revalidate"})
 
 
 app = create_app()
