@@ -11,18 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-# Install CPU-only torch first so `-r requirements.txt` does not pull CUDA wheels.
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download embedding model during image build
-# This avoids HuggingFace download during container startup.
-RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-SentenceTransformer('intfloat/multilingual-e5-small') \
-"
-
-# Copy only runtime source. The vector index is rebuilt into Postgres at runtime.
+# Copy runtime source BEFORE the pre-download step below: unlike the old
+# sentence-transformers one-liner (which needed nothing from this repo), baking in the
+# ONNX weights now imports app.infra.embeddings.onnx_embedder and app.core.config, so
+# app/ must exist first. The vector index itself is still rebuilt into Postgres at
+# runtime — only the model weights and tokenizer are baked in here.
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY app/ ./app/
@@ -32,6 +27,17 @@ COPY documents/ ./documents/
 # small JSON files and a few pure-Python modules; without them the endpoint 503s in the
 # container while working perfectly on a developer's machine.
 COPY eval/ ./eval/
+
+# Pre-download the ONNX weights + tokenizer during image build, at the SAME variant
+# EMBEDDING_ONNX_VARIANT selects at runtime (app/core/config.py's default) — this avoids
+# a HuggingFace download during container startup, and means a broken tokenizer/session
+# fails the BUILD, not a live deploy.
+RUN python -c "\
+from app.core.config import get_settings; \
+from app.infra.embeddings.onnx_embedder import OnnxEmbedder; \
+s = get_settings(); \
+OnnxEmbedder(s.embedding_model_name, s.embedding_onnx_variant) \
+"
 
 
 # `api` must remain the LAST stage. Render's Docker runtime cannot select a build target

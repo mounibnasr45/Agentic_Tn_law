@@ -17,15 +17,24 @@ psycopg[binary,pool]>=3.1
 pgvector>=0.2.5
 alembic>=1.13
 
-torch
 numpy
 PyMuPDF
-sentence-transformers
+# Torch-free embedding stack — see app/infra/embeddings/onnx_embedder.py. Replaced
+# `torch` + `sentence-transformers` (which hard-depends on torch): importing torch and
+# loading the ~450MB fp32 e5-small weights already exceeded a 512MB Render Free
+# container before a single request was served. `transformers` is listed WITHOUT the
+# `[torch]` extra — confirmed via its own PyPI metadata that bare `transformers` does
+# not pull torch in, only `transformers[torch]` does — and is used only for its
+# tokenizer. `optimum[onnxruntime]` was considered and rejected: it unconditionally
+# requires torch>=1.11 even for the onnxruntime backend.
+onnxruntime
+transformers
+huggingface_hub
 # scikit-learn and tiktoken are not imported by anything under app/, eval/ or tests/ — they
-# are almost certainly transitive requirements of sentence-transformers and langchain that
-# were pinned directly at some point. Left in place deliberately: unlike the two removed
-# below, they ARE installed here, so dropping them is an untested change rather than a
-# confirmed cleanup.
+# are almost certainly transitive requirements of langchain that were pinned directly at
+# some point (sentence-transformers, the other likely source, is gone as of the ONNX
+# swap above). Left in place deliberately: unlike the two removed below, they ARE
+# installed here, so dropping them is an untested change rather than a confirmed cleanup.
 scikit-learn
 
 # Agent (P5)

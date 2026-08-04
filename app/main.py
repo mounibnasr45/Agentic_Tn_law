@@ -3,10 +3,10 @@
     uvicorn app.main:app --workers 1
 
 WORKERS = 1, DELIBERATELY. Each uvicorn worker is a separate process and loads its own
-copy of the ~450MB embedding model. `--workers 4` on a 512MB free tier is an instant OOM,
-and on a 2GB box it quadruples memory for no throughput gain, because the work is I/O
-against Postgres and an LLM, not CPU. Scale with replicas behind a reverse proxy instead.
-Knowing WHY workers is 1 is worth more than setting it to 4.
+copy of the embedding model (118MB int8 ONNX by default — see app/infra/embeddings/
+onnx_embedder.py). `--workers 4` on a 512MB free tier wastes most of it for no throughput
+gain, because the work is I/O against Postgres and an LLM, not CPU. Scale with replicas
+behind a reverse proxy instead. Knowing WHY workers is 1 is worth more than setting it to 4.
 """
 import asyncio
 import sys
@@ -25,7 +25,7 @@ from app.core.errors import DomainError, to_http_exception
 from app.core.logging import configure_logging, get_logger, request_id_var
 from app.core.runtime import configure_event_loop
 from app.infra.db.session import dispose_engine
-from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
+from app.infra.embeddings.onnx_embedder import OnnxEmbedder
 
 log = get_logger(__name__)
 
@@ -34,10 +34,10 @@ log = get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Load expensive, stateless resources ONCE.
 
-    The embedding model is 450MB and takes seconds to load. Building it per request — or
-    lazily on first request — would make the first caller after every deploy wait for it,
-    and would race if two requests arrived together. Loading it here means the container
-    is not "ready" until it genuinely can serve.
+    The embedding model takes seconds to load. Building it per request — or lazily on
+    first request — would make the first caller after every deploy wait for it, and
+    would race if two requests arrived together. Loading it here means the container is
+    not "ready" until it genuinely can serve.
     """
     settings = get_settings()
 
@@ -56,7 +56,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
 
     log.info("loading_embedder", model=settings.embedding_model_name)
-    app.state.embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
+    app.state.embedder = OnnxEmbedder(
+        settings.embedding_model_name, settings.embedding_onnx_variant
+    )
 
     if settings.auto_migrate_on_startup:
         # alembic upgrade runs as a SUBPROCESS: alembic/env.py calls asyncio.run() at
@@ -71,9 +73,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             raise RuntimeError("alembic upgrade head failed during startup — see logs above")
 
         # Ingestion runs IN-PROCESS, reusing app.state.embedder — NOT a subprocess. A
-        # `python -m app.cli ingest` child would load its own copy of torch and the
-        # ~450MB model on top of this process's already-imported copy, which is exactly
-        # what OOM'd a 512MB Free instance before a single chunk was embedded.
+        # `python -m app.cli ingest` child would load its own copy of the ONNX runtime
+        # and model weights on top of this process's already-loaded copy, doubling
+        # memory for no reason on a container with no headroom to spare.
         log.info("auto_ingest_starting")
         from app.cli import ingest as ingest_corpus
 

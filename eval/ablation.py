@@ -21,7 +21,7 @@ from app.core.logging import configure_logging, get_logger
 from app.core.runtime import configure_event_loop
 from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
 from app.infra.db.session import dispose_engine, get_sessionmaker
-from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
+from app.infra.embeddings.onnx_embedder import OnnxEmbedder
 from eval.harness import Config, load_golden_set, run
 
 log = get_logger(__name__)
@@ -97,7 +97,7 @@ async def main_async(args) -> int:
     settings = get_settings()
     questions = load_golden_set()
 
-    embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
+    embedder = OnnxEmbedder(settings.embedding_model_name, settings.embedding_onnx_variant)
 
     async with get_sessionmaker()() as session:
         repository = PostgresChunkRepository(session)

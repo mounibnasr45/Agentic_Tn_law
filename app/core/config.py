@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     #     MRR    0.364 -> 0.747
     # e5 requires "query: " / "passage: " prefixes; the embedder adds them.
     embedding_model_name: str = "intfloat/multilingual-e5-small"
+    # Which ONNX export of embedding_model_name to load — see the _ONNX_VARIANTS mapping
+    # in app/infra/embeddings/onnx_embedder.py. "int8" (118MB) is the default and fits
+    # Render's 512MB free tier; "o4" (235MB) is the documented fallback if int8's
+    # quantization noise ever regresses eval/baseline.json's hit@5 beyond what
+    # eval/ablation.py --gate tolerates.
+    embedding_onnx_variant: str = "int8"
     chunk_size: int = 700
     chunk_overlap: int = 150
     top_k_retriever: int = 20

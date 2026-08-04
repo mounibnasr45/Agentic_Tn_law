@@ -21,17 +21,18 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.core.runtime import configure_event_loop
+from app.domain.ports import Embedder
 from app.domain.retrieval import HybridRetriever
 from app.infra.db.models import User
 from app.infra.db.repositories.chunk_repo import PostgresChunkRepository
 from app.infra.db.session import dispose_engine, get_sessionmaker
-from app.infra.embeddings.sentence_transformer import SentenceTransformerEmbedder
+from app.infra.embeddings.onnx_embedder import OnnxEmbedder
 from app.services.ingestion_service import IngestionService
 
 log = get_logger(__name__)
 
 
-async def ingest(embedder: SentenceTransformerEmbedder | None = None) -> int:
+async def ingest(embedder: Embedder | None = None) -> int:
     """Index the corpus files listed in settings.default_document_filenames.
 
     Thin: register() and process() are IngestionService's, so the CLI and the admin upload
@@ -42,9 +43,9 @@ async def ingest(embedder: SentenceTransformerEmbedder | None = None) -> int:
     `embedder` lets a caller that already loaded one pass it in instead of this function
     loading its own. app/main.py's Free-tier startup path does exactly that: it used to
     shell out to `python -m app.cli ingest` as a subprocess, which loaded a SECOND copy of
-    torch and the ~450MB model into a fresh process while the parent's own copy (imported
-    at module load, before the embedder is even instantiated) was already resident — on a
-    512MB instance that alone was enough to OOM before a single chunk was embedded.
+    the embedding runtime into a fresh process while the parent's own copy was already
+    resident — on a 512MB instance that alone was enough to OOM before a single chunk was
+    embedded.
     """
     settings = get_settings()
 
@@ -58,7 +59,7 @@ async def ingest(embedder: SentenceTransformerEmbedder | None = None) -> int:
         return 1
 
     if embedder is None:
-        embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
+        embedder = OnnxEmbedder(settings.embedding_model_name, settings.embedding_onnx_variant)
 
     async with get_sessionmaker()() as session:
         service = IngestionService(session, embedder)
@@ -119,7 +120,7 @@ async def grant_admin(email: str) -> int:
 async def search(query: str) -> int:
     """Query from a cold process — nothing was indexed in THIS process."""
     settings = get_settings()
-    embedder = SentenceTransformerEmbedder(settings.embedding_model_name)
+    embedder = OnnxEmbedder(settings.embedding_model_name, settings.embedding_onnx_variant)
 
     async with get_sessionmaker()() as session:
         repository = PostgresChunkRepository(session)
