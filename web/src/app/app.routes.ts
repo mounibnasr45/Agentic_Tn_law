@@ -41,6 +41,18 @@ export const routes: Routes = [
   },
 
   {
+    // Authenticated, unlike /evaluation and /status: those publish measurements ABOUT the
+    // corpus, this serves the corpus itself. The distinction also has a practical edge —
+    // the viewer streams the PDFs through HttpClient so the auth interceptor can attach a
+    // token, which an <iframe src> could never do.
+    path: 'documents',
+    title: 'Textes sources · Agent Juridique Tunisien',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/documents/documents-page/documents-page').then((m) => m.DocumentsPage),
+  },
+
+  {
     path: 'admin',
     title: 'Corpus · Agent Juridique Tunisien',
     // BOTH guards, in order: authGuard sends a logged-out visitor to /login, adminGuard

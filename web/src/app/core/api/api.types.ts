@@ -272,3 +272,16 @@ export interface EvaluationResponse {
   golden_set: GoldenSetInfo;
   encoder_fix: EncoderComparison;
 }
+
+// ---------------------------------------------------------------------------
+// Documents  <- app/api/schemas/documents.py
+// ---------------------------------------------------------------------------
+
+export interface CorpusDocument {
+  id: string;
+  title: string;
+  size_bytes: number;
+  /** Chunks derived from this document — how much of it the agent can actually cite. */
+  chunk_count: number;
+  indexed_at: string | null;
+}

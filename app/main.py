@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse, JSONResponse
 
 from app.agent.graph import create_checkpointer
-from app.api.routes import admin, auth, chat, evaluation, health, search
+from app.api.routes import admin, auth, chat, documents, evaluation, health, search
 from app.core.config import get_settings
 from app.core.errors import DomainError, to_http_exception
 from app.core.logging import configure_logging, get_logger, request_id_var
@@ -158,6 +158,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api")
     app.include_router(search.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
+    app.include_router(documents.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
     # Unauthenticated, like /health: published measurements about a public corpus.
     app.include_router(evaluation.router, prefix="/api")

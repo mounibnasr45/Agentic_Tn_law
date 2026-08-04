@@ -1,0 +1,79 @@
+<section class="documents-page">
+  <header class="page-header">
+    <h1>Textes sources</h1>
+    <p class="subtitle">
+      Les documents que l'agent cite. Consultez-les ici pour vérifier une citation
+      directement à la source.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  @if (failed() && documents().length === 0) {
+    <div class="empty-state">
+      <mat-icon>error_outline</mat-icon>
+      <p>Impossible de charger les textes sources.</p>
+    </div>
+  }
+
+  @if (documents().length > 0) {
+    <div class="viewer">
+      <!-- The list stays visible beside the preview: switching between the penal code and
+           the constitution while reading is the whole point, and a dropdown would hide
+           the fact that there is more than one text at all. -->
+      <nav class="document-list" aria-label="Textes sources">
+        @for (doc of documents(); track doc.id) {
+          <button
+            type="button"
+            class="document-item"
+            [class.selected]="selected()?.id === doc.id"
+            [attr.aria-current]="selected()?.id === doc.id ? 'true' : null"
+            (click)="select(doc)"
+          >
+            <mat-icon>picture_as_pdf</mat-icon>
+            <span class="document-meta">
+              <span class="document-title">{{ doc.title }}</span>
+              <span class="document-detail">
+                {{ sizeInMb(doc.size_bytes) | number: '1.1-1' }} Mo ·
+                {{ doc.chunk_count }} passages indexés
+              </span>
+            </span>
+          </button>
+        }
+      </nav>
+
+      <div class="preview">
+        @if (selected(); as doc) {
+          <div class="preview-toolbar">
+            <span class="preview-title">{{ doc.title }}</span>
+            <button mat-stroked-button (click)="download(doc)">
+              <mat-icon>download</mat-icon>
+              Télécharger
+            </button>
+          </div>
+
+          @if (previewLoading()) {
+            <mat-progress-bar mode="indeterminate" />
+          }
+
+          @if (previewUrl(); as url) {
+            <!-- The browser's own PDF viewer: search, zoom, pagination and printing for
+                 free, and nothing added to the bundle. -->
+            <iframe class="preview-frame" [src]="url" [title]="doc.title"></iframe>
+          } @else if (!previewLoading()) {
+            <div class="empty-state">
+              <mat-icon>error_outline</mat-icon>
+              <p>Impossible d'afficher ce document.</p>
+              <button mat-stroked-button (click)="download(doc)">
+                <mat-icon>download</mat-icon>
+                Télécharger à la place
+              </button>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+</section>
