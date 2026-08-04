@@ -1,4 +1,4 @@
-"""Torch-free embedder: onnxruntime + a tokenizer, no sentence-transformers, no torch.
+"""Torch-free embedder: onnxruntime + tokenizers, no transformers, no torch.
 
 Exists because sentence-transformers hard-depends on torch, and importing torch plus
 loading the ~450MB fp32 e5-small weights already exceeds a 512MB Render Free container
@@ -34,12 +34,21 @@ _ONNX_VARIANTS = {
     "fp32": "onnx/model.onnx",  # 470MB — diagnostic only, same footprint as torch had
 }
 
+# The pre-built fast tokenizer that ships alongside the ONNX exports. See the comment in
+# __init__ for why this is loaded directly instead of via transformers.AutoTokenizer.
+_TOKENIZER_FILE = "onnx/tokenizer.json"
+
+# e5-small's documented limit. Hardcoded rather than read from tokenizer_config.json:
+# reading that file is what pulls transformers back in, and this value is a property of
+# the model architecture, not of the deployment.
+_MAX_TOKENS = 512
+
 
 class OnnxEmbedder:
     def __init__(self, model_name: str, onnx_variant: str = "int8") -> None:
         import onnxruntime as ort
         from huggingface_hub import hf_hub_download
-        from transformers import AutoTokenizer
+        from tokenizers import Tokenizer
 
         if onnx_variant not in _ONNX_VARIANTS:
             raise ValueError(
@@ -51,15 +60,36 @@ class OnnxEmbedder:
 
         onnx_file = _ONNX_VARIANTS[onnx_variant]
         onnx_path = hf_hub_download(repo_id=model_name, filename=onnx_file)
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        # `tokenizers` directly, NOT transformers.AutoTokenizer. Measured in a 512MB
+        # container: AutoTokenizer.from_pretrained peaked at 449MB RSS because it
+        # rebuilds the fast tokenizer from sentencepiece.bpe.model on load, while
+        # Tokenizer.from_file on the ALREADY-BUILT tokenizer.json peaked at 342MB — a
+        # ~105MB saving that is the difference between fitting the free tier and not.
+        # Verified to produce byte-identical input_ids and attention_mask.
+        tokenizer_path = hf_hub_download(repo_id=model_name, filename=_TOKENIZER_FILE)
+        self._tokenizer = Tokenizer.from_file(tokenizer_path)
+        self._tokenizer.enable_truncation(max_length=_MAX_TOKENS)
+        # Read the pad token out of the vocabulary rather than hardcoding id 1: it is
+        # correct for this XLM-R vocabulary, but a wrong pad id is invisible — it
+        # silently embeds a real token where padding was meant, and only shows up as
+        # slightly worse retrieval.
+        pad_token = "<pad>"
+        pad_id = self._tokenizer.token_to_id(pad_token)
+        if pad_id is None:
+            raise ValueError(f"{model_name} tokenizer has no {pad_token!r} token")
+        self._tokenizer.enable_padding(pad_id=pad_id, pad_token=pad_token, pad_type_id=0)
 
         # A tiny container has ~1 CPU. onnxruntime defaults to one intra-op thread per
         # visible core, which just adds thread-pool memory/contention here for no
         # throughput gain — the same reasoning app/main.py already applies to uvicorn's
-        # WORKERS=1.
+        # WORKERS=1. The CPU memory arena is disabled for the same reason: it trades
+        # memory for allocation speed, which is the wrong side of that trade here.
         session_options = ort.SessionOptions()
         session_options.intra_op_num_threads = 1
         session_options.inter_op_num_threads = 1
+        session_options.enable_cpu_mem_arena = False
+        session_options.enable_mem_pattern = False
         self._session = ort.InferenceSession(
             onnx_path, sess_options=session_options, providers=["CPUExecutionProvider"]
         )
@@ -68,24 +98,6 @@ class OnnxEmbedder:
         self._hidden_output_index = (
             output_names.index("last_hidden_state") if "last_hidden_state" in output_names else 0
         )
-
-        max_tokens = getattr(self._tokenizer, "model_max_length", 512)
-        # Some tokenizer configs report a sentinel "no limit" (~1e30) instead of a real
-        # number; e5's documented limit is 512.
-        self._max_tokens = 512 if max_tokens > 100_000 else int(max_tokens)
-
-        # BUG 13, PORTED FORWARD. The old default encoder (MiniLM, max_seq_length=128)
-        # silently dropped part of every chunk before encoding — see
-        # app/core/config.py's embedding_model_name comment for the measured hit@1
-        # regression that caused. This is what would have caught it: if a future variant
-        # or tokenizer config regresses to a low limit, warn loudly instead of silently
-        # truncating chunk_size=700-char chunks again.
-        if self._max_tokens <= 128:
-            log.warning(
-                "encoder_truncates_chunks",
-                max_seq_length=self._max_tokens,
-                detail="tokenizer limit <=128 tokens will silently drop text past it",
-            )
 
         # A warm inference at construction: (1) fails fast at startup if the
         # tokenizer/session wiring is wrong, matching the "not ready until it genuinely
@@ -107,7 +119,7 @@ class OnnxEmbedder:
             "embedding_model_loaded",
             model=self._model_name,
             onnx_file=onnx_file,
-            max_seq_length=self._max_tokens,
+            max_seq_length=_MAX_TOKENS,
             dimensions=self._dimensions,
         )
 
@@ -120,19 +132,19 @@ class OnnxEmbedder:
         return self._dimensions
 
     def _encode(self, texts: Sequence[str]) -> np.ndarray:
-        encoded = self._tokenizer(
-            list(texts),
-            padding=True,
-            truncation=True,
-            max_length=self._max_tokens,
-            return_tensors="np",
-        )
-        onnx_inputs = {k: v for k, v in encoded.items() if k in self._input_names}
+        # Padding and truncation are configured once on the tokenizer in __init__, so
+        # encode_batch already returns equal-length, truncated sequences.
+        encodings = self._tokenizer.encode_batch(list(texts))
+        input_ids = np.array([e.ids for e in encodings], dtype=np.int64)
+        attention_mask = np.array([e.attention_mask for e in encodings], dtype=np.int64)
+
+        onnx_inputs = {"input_ids": input_ids, "attention_mask": attention_mask}
         # XLM-R-based tokenizers don't produce token_type_ids (no segment embeddings in
         # the model), but this export still declares it as a required input — feed
         # zeros, matching what a torch forward pass defaults it to when absent.
-        if "token_type_ids" in self._input_names and "token_type_ids" not in onnx_inputs:
-            onnx_inputs["token_type_ids"] = np.zeros_like(encoded["input_ids"])
+        if "token_type_ids" in self._input_names:
+            onnx_inputs["token_type_ids"] = np.zeros_like(input_ids)
+        onnx_inputs = {k: v for k, v in onnx_inputs.items() if k in self._input_names}
 
         outputs = self._session.run(None, onnx_inputs)
         last_hidden_state = outputs[self._hidden_output_index]  # (batch, seq, hidden)
@@ -140,7 +152,7 @@ class OnnxEmbedder:
         # Attention-mask-weighted mean pooling, then L2 normalize — e5's own model-card
         # pooling, and what SentenceTransformer.encode(normalize_embeddings=True) already
         # did for this model before this replaced it.
-        mask = encoded["attention_mask"][..., None].astype(np.float32)
+        mask = attention_mask[..., None].astype(np.float32)
         summed = (last_hidden_state * mask).sum(axis=1)
         counts = np.clip(mask.sum(axis=1), a_min=1e-9, a_max=None)
         mean_pooled = summed / counts

@@ -3,7 +3,14 @@ FROM python:3.11-slim AS base
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    # glibc gives each thread its own 64MB malloc arena by default. Loading the
+    # tokenizer and the ONNX session is allocation-heavy across several threads, and
+    # freed memory in one arena is never reused by another — so RSS ratchets up well
+    # past what is actually live. Capping arenas costs a little allocator contention
+    # (this process is I/O-bound, so effectively nothing) and buys headroom on a 512MB
+    # instance, where the whole problem is peak RSS during startup.
+    MALLOC_ARENA_MAX=2
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -38,6 +45,13 @@ from app.infra.embeddings.onnx_embedder import OnnxEmbedder; \
 s = get_settings(); \
 OnnxEmbedder(s.embedding_model_name, s.embedding_onnx_variant) \
 "
+
+# AFTER the bake-in above, never before — this same variable would make that download
+# fail. From here on the weights and tokenizer are in the image's HF cache, so runtime
+# needs no network: without this, huggingface_hub still issues blocking HEAD requests to
+# revalidate the cache on every boot, which is slow and fails hard if the container has
+# no egress to huggingface.co.
+ENV HF_HUB_OFFLINE=1
 
 
 # `api` must remain the LAST stage. Render's Docker runtime cannot select a build target
