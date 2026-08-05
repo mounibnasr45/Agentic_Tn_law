@@ -1,18 +1,5 @@
-"""Torch-free embedder: onnxruntime + tokenizers, no transformers, no torch.
-
-Exists because sentence-transformers hard-depends on torch, and importing torch plus
-loading the ~450MB fp32 e5-small weights already exceeds a 512MB Render Free container
-before a single request is served (confirmed by a real deploy OOMing at the
-"loading_embedder" step, before migrations or ingestion even start). `optimum.onnxruntime`
-was considered and ruled out: even `optimum[onnxruntime]` unconditionally depends on
-`torch>=1.11` per its own package metadata, so this talks to onnxruntime directly instead.
-
-intfloat/multilingual-e5-small's own HuggingFace repo publishes ONNX exports in its onnx/
-subfolder, including an int8-quantized one at 118MB (vs. 470MB fp32) — see _ONNX_VARIANTS.
-A parity spike (fp32 ONNX vs. the torch encoder, cosine similarity 1.0000 on real corpus
-sentences; int8 vs. torch, 0.994-0.996) confirmed the mean-pooling + normalization below
-reproduces sentence-transformers' output before this replaced it.
-"""
+"""Local embedder: onnxruntime running intfloat/multilingual-e5-small, with no
+torch or transformers dependency."""
 import asyncio
 from collections.abc import Sequence
 
@@ -61,12 +48,11 @@ class OnnxEmbedder:
         onnx_file = _ONNX_VARIANTS[onnx_variant]
         onnx_path = hf_hub_download(repo_id=model_name, filename=onnx_file)
 
-        # `tokenizers` directly, NOT transformers.AutoTokenizer. Measured in a 512MB
-        # container: AutoTokenizer.from_pretrained peaked at 449MB RSS because it
-        # rebuilds the fast tokenizer from sentencepiece.bpe.model on load, while
-        # Tokenizer.from_file on the ALREADY-BUILT tokenizer.json peaked at 342MB — a
-        # ~105MB saving that is the difference between fitting the free tier and not.
-        # Verified to produce byte-identical input_ids and attention_mask.
+        # `tokenizers` directly, NOT transformers.AutoTokenizer: the latter rebuilds the
+        # fast tokenizer from sentencepiece.bpe.model on every load, costing well over
+        # 100MB of peak RSS that Tokenizer.from_file on the already-built tokenizer.json
+        # avoids — the difference between fitting the free tier and not. Same
+        # input_ids/attention_mask output either way.
         tokenizer_path = hf_hub_download(repo_id=model_name, filename=_TOKENIZER_FILE)
         self._tokenizer = Tokenizer.from_file(tokenizer_path)
         self._tokenizer.enable_truncation(max_length=_MAX_TOKENS)

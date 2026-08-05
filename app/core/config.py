@@ -1,13 +1,5 @@
-"""Typed application settings.
-
-Replaces the old module-level `config.py`, which read os.getenv at import time,
-called os.makedirs three times at import, and stat'd the filesystem while
-printing warnings. That made importing config a side effect, and made every
-setting impossible to override in a test.
-
-Settings are resolved once via get_settings() and cached. Tests override by
-calling get_settings.cache_clear() after patching the environment.
-"""
+"""Typed application settings, read from the environment and .env.
+Every tunable default — chunking, retrieval weights, agent limits — lives here."""
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -73,25 +65,10 @@ class Settings(BaseSettings):
     # Candidates pulled from EACH arm before fusion. Higher = less truncation bias in
     # align_candidates (a chunk absent from one arm is scored 0.0 there), wider SQL scan.
     candidate_limit: int = 50
-    # BUG 13, FIXED AND MEASURED. The previous encoder
-    # (paraphrase-multilingual-MiniLM-L12-v2) has max_seq_length=128 TOKENS, while
-    # chunk_size is in CHARACTERS: 38% of penal-code chunks exceeded it, and 12% of the
-    # corpus's tokens were silently dropped before ever being embedded. No error; just a
-    # transformers warning nobody read. e5-small takes 512 tokens and is also 384-dim, so
-    # the swap needed no schema migration. Measured on the 56-question golden set:
-    #     hit@1  0.250 -> 0.679
-    #     hit@5  0.500 -> 0.839
-    #     MRR    0.364 -> 0.747
-    # e5 requires "query: " / "passage: " prefixes; the embedder adds them.
-    # Which embedder app/infra/embeddings/create_embedder() builds: "gemini" or "onnx".
-    #
-    # DEFAULTS TO THE REMOTE ONE, WHICH IS NOT THE ARCHITECTURALLY NICER CHOICE. The local
-    # ONNX encoder needs no network, no API key and no quota — but it peaks at 502MB RSS
-    # against the 512MB ceiling of the only free hosting available, and no amount of
-    # trimming closed that gap (torch removal and a tokenizer swap each cut a large chunk
-    # and it still OOM'd). Moving embeddings out of the process is what makes this
-    # deployable at all. Set EMBEDDING_PROVIDER=onnx, and install onnxruntime + tokenizers,
-    # to go back to embedding locally on a host with real memory.
+
+    # Gemini needs no local model and stays under the 512MB memory ceiling of the free
+    # hosting tier; the local ONNX encoder does not, even after trimming its dependencies.
+    # Set to "onnx" (and install onnxruntime + tokenizers) on a host with more headroom.
     embedding_provider: str = "gemini"
 
     gemini_api_key: str = ""
@@ -106,6 +83,8 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 768
 
     # --- Local ONNX encoder (only when embedding_provider="onnx") ---
+    # 512-token context, unlike the smaller multilingual MiniLM models capped at 128 —
+    # article-length chunks need the headroom.
     embedding_model_name: str = "intfloat/multilingual-e5-small"
     # Which ONNX export of embedding_model_name to load — see the _ONNX_VARIANTS mapping
     # in app/infra/embeddings/onnx_embedder.py. "int8" (118MB) is the default and fits
@@ -117,22 +96,10 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     top_k_retriever: int = 20
 
-    # 0.0 = dense only, 1.0 = lexical only, in between = weighted hybrid.
-    #
-    # DENSE-ONLY IS THE MEASURED BEST, and this default says so. Every hybrid weight
-    # scores worse than pure dense on the golden set, and the gap WIDENED when the encoder
-    # moved to Gemini: dense hit@5 0.982, best weighted hybrid 0.929, RRF 0.804. We
-    # expected the lexical arm to earn its keep on article-number lookups ("que dit
-    # l'article 258 ?") and tested that class specifically. It did not.
-    #
-    # (Under the previous local e5 encoder the same ordering held at lower absolute
-    # numbers — dense 0.821, hybrid 0.786, RRF 0.714 — so this is a property of the corpus
-    # and the query mix, not of one encoder.)
-    #
-    # The lexical arm and RRF stay in the codebase and in the ablation, because this
-    # result is specific to THIS corpus (834 chunks) and must be re-measured before it is
-    # trusted anywhere else. Shipping "hybrid" anyway would be choosing a worse system for
-    # a nicer word.
+    # 0.0 = dense only, 1.0 = lexical only, in between = weighted hybrid. Dense outperforms
+    # every hybrid weight on the golden set for this corpus (see eval/baseline.json); the
+    # lexical arm and RRF stay in the ablation so a future corpus or encoder can be
+    # re-measured rather than assumed.
     hybrid_weight_bm25: float = 0.0
 
     # --- Agent ---

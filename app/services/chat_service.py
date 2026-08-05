@@ -1,4 +1,5 @@
-"""Ask a question, persist the answer and its citations."""
+"""Runs a question through the agent, persists the answer and its citations, and
+streams the trace as it happens."""
 import asyncio
 import contextlib
 import time

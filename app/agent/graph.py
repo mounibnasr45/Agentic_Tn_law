@@ -1,20 +1,5 @@
-"""The LangGraph agent.
-
-BUG 2 DIES HERE, and it is worth being precise about how.
-
-The old design held a ConversationBufferWindowMemory as an ATTRIBUTE of the agent object,
-and the frontend cached that object process-wide with @st.cache_resource. Conversation
-history was therefore a property of the PROCESS. Every visitor shared one buffer.
-
-The fix is not a bigger cache key. It is that the agent is now STATELESS and memory lives
-in Postgres, addressed by a thread_id that belongs to a row with a user_id on it. There is
-no object to share, because there is no state on the object. Two users cannot see each
-other's history for the same reason two users cannot see each other's database rows.
-
-Note the ownership boundary: LangGraph will cheerfully load ANY thread_id it is handed. It
-does not know about users. The check that a thread belongs to the caller lives in
-chat_service, against the conversations table — never assume the framework is doing it.
-"""
+"""Builds the LangGraph ReAct agent: the retrieval tool, the Postgres checkpointer,
+and the OpenRouter-backed LLM client shared across the app."""
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.prebuilt import create_react_agent

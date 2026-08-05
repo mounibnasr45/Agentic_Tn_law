@@ -1,29 +1,5 @@
-"""Dev server entrypoint.
-
-    python -m app.run
-
-Why this exists rather than `uvicorn app.main:app`:
-
-psycopg's async mode cannot run on Windows' ProactorEventLoop. Every database call fails
-with `psycopg.InterfaceError: Psycopg cannot use the 'ProactorEventLoop'`, while /health
-cheerfully reports the model as loaded — because loading a model needs no database. So the
-service looks up and is completely broken.
-
-The usual fix, `asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())`, DOES NOT
-WORK under uvicorn. As of 0.36 uvicorn stopped consulting the policy and builds its loop
-from a factory instead (uvicorn/loops/asyncio.py):
-
-    def asyncio_loop_factory(use_subprocess=False):
-        if sys.platform == "win32" and not use_subprocess:
-            return asyncio.ProactorEventLoop      # <- ignores the policy entirely
-        return asyncio.SelectorEventLoop
-
-So we drive the Server ourselves and hand it a loop we control. asyncio.run() honours the
-policy, so the loop is a SelectorEventLoop and psycopg works.
-
-None of this affects Linux, which is what the container and CI run — which is exactly why
-it is easy to ship broken and only discover it on a developer's laptop.
-"""
+"""Server entrypoint — drives uvicorn directly so the Windows event-loop policy
+takes effect."""
 import asyncio
 import os
 

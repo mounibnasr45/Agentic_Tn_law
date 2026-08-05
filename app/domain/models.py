@@ -1,4 +1,4 @@
-"""Domain types. Plain dataclasses — no ORM, no framework, no I/O."""
+"""Plain dataclasses for the domain layer — no ORM, no framework, no I/O."""
 from dataclasses import dataclass
 
 

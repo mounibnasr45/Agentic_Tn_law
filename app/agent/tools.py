@@ -1,17 +1,5 @@
-"""The retrieval tool, and how citations escape it.
-
-BUG 4's ROOT CAUSE. A LangChain/LangGraph tool must return a STRING — that is what goes
-into the model's context. The old tool therefore flattened its results into truncated text
-and threw the structure away, so chunk ids, scores and article numbers could never reach
-the caller, and `sources` ended up as a hardcoded placeholder that the UI string-compared
-against.
-
-The fix is not to change what the tool returns to the MODEL (it still needs prose), but to
-give the retrieved chunks a second exit: a ContextVar the chat service reads after the run.
-ContextVars propagate into asyncio tasks and are isolated per task, so two concurrent
-requests cannot see each other's citations — which matters, because the same bug class as
-bug 2 would otherwise reappear here.
-"""
+"""The retrieval tool the agent calls, and the citation trail it records for the
+trace panel and the answer's source list."""
 from contextvars import ContextVar
 
 from langchain_core.tools import tool

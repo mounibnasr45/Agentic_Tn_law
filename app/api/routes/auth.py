@@ -1,3 +1,5 @@
+"""Authentication endpoints: register, login, refresh, logout."""
+
 from fastapi import APIRouter, status
 
 from app.api.deps import AuthServiceDep, CurrentUser

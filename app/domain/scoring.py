@@ -1,9 +1,5 @@
-"""Pure scoring maths for hybrid retrieval.
-
-Deliberately free of faiss / sentence-transformers / chroma imports so the
-ranking logic can be tested (and swept for the retrieval eval) without loading
-an embedding model.
-"""
+"""Pure scoring maths for hybrid retrieval — normalisation, weighting, reciprocal
+rank fusion — with no I/O."""
 import numpy as np
 
 

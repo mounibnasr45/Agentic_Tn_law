@@ -1,17 +1,5 @@
-"""Reading the source documents the agent cites.
-
-An answer that cites "Article 258 du code pénal" is only as trustworthy as the reader's
-ability to go and check it. Until now the corpus was visible only as 400-character
-excerpts inside citation cards, so verifying a citation meant finding the PDF yourself —
-which is exactly the friction that makes people stop checking and start trusting the model
-blindly. These two routes exist to close that loop.
-
-SERVED INLINE, NOT AS AN ATTACHMENT. `Content-Disposition: inline` is what lets the
-browser's own PDF viewer render the file in the page instead of dropping it in the
-downloads folder. Downloading stays available (?download=1), but it is the deliberate
-action rather than the default — the common case is "show me the article", not "give me a
-copy".
-"""
+"""Serves the source PDFs the agent cites, inline in the browser or as a
+download, so a citation can be checked against its source."""
 from pathlib import Path
 
 from fastapi import APIRouter, Query

@@ -1,31 +1,4 @@
-"""Corpus ingestion: PDF bytes in, embedded and searchable chunks out.
-
-THE LOGIC USED TO LIVE IN app/cli.py AND NOWHERE ELSE. Adding an upload endpoint that
-re-implemented it would give the corpus two ingestion paths that could drift — one
-chunking with overlap and one without, one skipping already-indexed documents and one
-not — and the eval harness only ever measures whatever the CLI produced. So the CLI now
-calls this service too: one implementation, two front doors.
-
-THE SHAPE OF THE OPERATION. Ingestion is slow (extract -> chunk -> embed N chunks on a
-CPU) and an HTTP request must not block on it, so it splits in two:
-
-    register()  runs INSIDE the request. Cheap: hash the bytes, write the file, create or
-                reset the document row, return it. The admin sees a "pending" row
-                immediately, which is what makes the upload feel like it worked.
-
-    process()   runs AFTER the response, in a background task with its OWN session.
-                Extracts, chunks, embeds in batches, and writes progress to the row as it
-                goes.
-
-WHY process() OPENS ITS OWN SESSION. FastAPI closes the request-scoped AsyncSession when
-the response is sent — before a BackgroundTask runs. Reusing it would raise on the first
-query, intermittently, depending on how fast the client disconnected. The background task
-is a separate unit of work and owns its transaction.
-
-PROGRESS IS WRITTEN TO THE ROW, not to a module-level dict, and is committed per batch.
-A dict is invisible to a second worker and lost when a free-tier dyno spins down — which
-is exactly the moment an admin is watching the bar and wants to know what happened.
-"""
+"""Corpus ingestion: PDF bytes in, chunked and embedded rows in Postgres out."""
 import hashlib
 from datetime import UTC, datetime
 

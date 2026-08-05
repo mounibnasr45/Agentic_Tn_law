@@ -1,13 +1,5 @@
-"""The retrieval evaluation, served to the UI.
-
-WHY AN ENDPOINT AND NOT A HARDCODED PAGE. The numbers come from eval/baseline.json, which
-`python -m eval.ablation --write-baseline` regenerates and CI gates against. Reading that
-file means the page cannot drift from the artefact the build actually checks — a table
-typed into HTML would be a claim; this is the measurement.
-
-UNAUTHENTICATED, like /api/health. These are published results about a public corpus, not
-user data, and the whole point is that someone can look at them without an account.
-"""
+"""Serves the retrieval evaluation results to the UI, read from the same
+eval/baseline.json CI gates against."""
 import json
 from functools import lru_cache
 from pathlib import Path

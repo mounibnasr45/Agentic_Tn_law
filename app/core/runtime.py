@@ -1,14 +1,5 @@
-"""Event-loop setup for async entrypoints.
-
-Python on Windows defaults to ProactorEventLoop, which psycopg's async mode cannot use:
-
-    psycopg.InterfaceError: Psycopg cannot use the 'ProactorEventLoop' to run in
-    async mode.
-
-Every async entrypoint must call configure_event_loop() before touching the database.
-No-op on Linux and macOS, so CI and the container are unaffected — which is exactly why
-this is easy to miss until a developer on Windows tries to run a migration.
-"""
+"""Event-loop policy fix so psycopg's async mode works on Windows, where the
+default ProactorEventLoop cannot run it."""
 import asyncio
 import sys
 

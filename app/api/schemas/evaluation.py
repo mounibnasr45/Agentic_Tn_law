@@ -1,4 +1,5 @@
-"""Evaluation API schemas — the shape of eval/baseline.json as the UI needs it."""
+"""Response model for the evaluation endpoint — the shape of eval/baseline.json
+as the UI needs it."""
 from pydantic import BaseModel
 
 

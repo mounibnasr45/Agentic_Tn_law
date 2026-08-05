@@ -1,16 +1,5 @@
-"""Hybrid retrieval.
-
-Depends only on the Embedder and ChunkRepository ports, so it can run against fakes —
-no model download, no database, no network. That is what makes the offline ablation
-sweep possible.
-
-BUG 1 DIES HERE. The old retriever kept its BM25 index and embedding matrix in memory
-and never persisted them, so a cold process restored only Chroma, found self.documents
-empty, set is_initialized = True anyway, and silently fell back to dense-only search.
-There is now no in-memory index to lose: both arms are queries against durable storage.
-The class holds no corpus state at all, so there is nothing to rebuild, nothing to
-mutate, and no lock to forget (which also dissolves bug 6).
-"""
+"""Hybrid retrieval: runs the dense and lexical arms, fuses their candidates, and
+returns the ranked chunks."""
 from enum import StrEnum
 
 from app.core.logging import get_logger

@@ -1,11 +1,5 @@
-"""Ports: the interfaces the domain depends on.
-
-The old HybridRetriever imported SentenceTransformer, Chroma, BM25Okapi and faiss
-directly, so testing the ranking logic meant downloading a 470MB model and standing
-up a vector store. Depending on these Protocols instead means the retriever can be
-exercised against in-memory fakes — which is also what lets the eval harness sweep
-fusion weights offline, with no database and no network.
-"""
+"""Protocols the domain depends on — Embedder, ChunkRepository, Reranker — so
+retrieval logic can be tested against fakes instead of real infrastructure."""
 from collections.abc import Sequence
 from typing import Protocol
 

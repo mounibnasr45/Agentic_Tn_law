@@ -1,13 +1,5 @@
-"""Structured logging.
-
-Replaces ~35 print() calls scattered across the codebase. print() writes
-unattributable text to stdout; under a concurrent server those lines interleave
-into garbage, and nothing can be filtered, levelled, or correlated to a request.
-
-A request_id contextvar threads an id through every log line emitted while
-handling one request, which is what makes the logs greppable once there is an
-API in front of this.
-"""
+"""Structured logging setup: JSON in production, readable text in development,
+one request id threaded through every line of a request."""
 import logging
 import sys
 from contextvars import ContextVar

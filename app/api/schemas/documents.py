@@ -1,3 +1,5 @@
+"""Response model for the corpus document listing."""
+
 import uuid
 from datetime import datetime
 

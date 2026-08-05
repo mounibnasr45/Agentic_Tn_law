@@ -1,14 +1,5 @@
-"""Admin corpus management.
-
-Every route here is behind CurrentAdmin, which chains onto get_current_user — so an admin
-route cannot skip the token/active-account checks the normal user dependency performs.
-
-WHY UPLOAD RETURNS 202 AND NOT 200. Ingesting a legal code is extract + chunk + embed over
-hundreds of chunks on a CPU: tens of seconds at best. Holding the request open for that
-would hit the proxy's idle timeout on a free host and hand the admin a 504 for an ingest
-that is in fact running fine. 202 Accepted with a document row the client can poll is the
-honest shape — the work is queued, here is its id, ask again.
-"""
+"""Admin endpoints for corpus management: upload a PDF, watch it get indexed,
+inspect status."""
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status

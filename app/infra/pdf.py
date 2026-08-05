@@ -1,11 +1,4 @@
-"""PDF text extraction.
-
-Replaces app/document_processor.py, whose split_documents_into_chunks() was superseded by
-app/domain/chunking.py (article-aware) and had zero callers left. Deleting it also drops
-langchain-text-splitters and langchain-core.documents from the ingest path — the corpus is
-now split on article boundaries, not on character counts, because the article is the atomic
-unit of law and a chunk straddling two of them cannot be cited as either.
-"""
+"""PDF text extraction, via PyMuPDF."""
 from pathlib import Path
 
 import fitz  # PyMuPDF

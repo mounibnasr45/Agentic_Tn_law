@@ -1,13 +1,5 @@
-"""Combining the lexical and dense retrieval arms.
-
-The in-memory retriever scored the WHOLE corpus with both arms, so the two score
-vectors were already aligned and could be blended element-wise. Moving retrieval into
-SQL changes that: each arm returns only its own top-N, so the candidate sets differ
-and must be unioned before they can be blended.
-
-Two strategies live here, and which one is better is a measured result rather than an
-opinion — both are arms in the ablation harness.
-"""
+"""Combines the lexical and dense retrieval arms into one ranked list, either by
+weighted score or by reciprocal rank fusion."""
 import numpy as np
 
 

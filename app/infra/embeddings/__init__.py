@@ -1,18 +1,5 @@
-"""Embedder selection.
-
-Two implementations satisfy app.domain.ports.Embedder, and which one runs is a deployment
-decision rather than a code one — so every entrypoint (app/main.py, app/cli.py,
-eval/ablation.py) goes through create_embedder() instead of naming a class. Ingest with
-one provider and query with another and every score is meaningless, so the one place that
-choice is made had better be shared.
-
-  gemini (default) — no model in the process; ~300MB smaller, which is the only reason
-                     this fits a 512MB free tier. Costs a network call per embed.
-  onnx             — self-contained local encoder. Better in every way except memory, and
-                     memory is the binding constraint. Its dependencies (onnxruntime,
-                     tokenizers, huggingface_hub) are deliberately NOT in requirements.txt;
-                     install them to use it.
-"""
+"""Builds the configured embedder — Gemini by default, or a local ONNX model —
+so callers never construct one directly."""
 from app.domain.ports import Embedder
 
 

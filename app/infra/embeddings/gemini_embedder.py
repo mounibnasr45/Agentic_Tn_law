@@ -1,24 +1,4 @@
-"""Embeddings from Google's Gemini API — no model in this process at all.
-
-WHY THIS EXISTS. The local encoder (see onnx_embedder.py) is the better architecture on
-paper: self-contained, no per-query network call, no quota. It does not fit the only free
-hosting available. Measured peak RSS with the ONNX encoder resident was 502MB against a
-512MB ceiling; torch removal and a tokenizer swap each cut a large chunk and it still did
-not fit, because a 250k-vocab multilingual encoder plus FastAPI, LangGraph and a Postgres
-pool simply does not leave room. Moving the encoder out of the process removes ~300MB.
-
-TWO API BEHAVIOURS THIS RELIES ON, both verified against the live API rather than assumed:
-
-  * `gemini-embedding-001` returns ONE EMBEDDING PER INPUT for a multi-text request. Its
-    successor `gemini-embedding-2` does not — it returns a single aggregated vector for the
-    whole batch, which would silently index one meaningless embedding per batch of 32
-    chunks and produce a corpus that retrieves nothing sensible. That is the reason this
-    pins -001 rather than tracking "latest".
-  * Vectors are NOT unit length when `output_dimensionality` truncates them (measured L2
-    norm ~0.58 at 768 dims). Only the full-width output is pre-normalised. Cosine distance
-    in Postgres and the `1 - distance` similarity in chunk_repo both assume unit vectors,
-    so this normalises before returning — see _normalise.
-"""
+"""Embedder backed by Google's Gemini API — no model resident in this process."""
 import asyncio
 from collections.abc import Sequence
 
@@ -29,8 +9,8 @@ from app.core.logging import get_logger
 log = get_logger(__name__)
 
 # The API's own analogue of e5's "query: " / "passage: " prefixes: the same text embeds
-# differently depending on which side of the retrieval it is on (measured cosine between
-# the two encodings of one sentence: 0.87, so this is a real distinction, not a no-op).
+# differently depending on which side of the retrieval it is on, so query and document
+# text must never share an embed_* call.
 _QUERY_TASK = "RETRIEVAL_QUERY"
 _DOCUMENT_TASK = "RETRIEVAL_DOCUMENT"
 

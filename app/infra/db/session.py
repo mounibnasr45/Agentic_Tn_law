@@ -1,10 +1,4 @@
-"""Async engine and session factory.
-
-Driver: psycopg3 (`postgresql+psycopg://`), not asyncpg. LangGraph's Postgres
-checkpointer (P5) is built on psycopg3, and running two async drivers against one
-database means two pools, two sets of connection semantics, and two things to tune.
-asyncpg's throughput edge is irrelevant at this scale; one driver is the cleaner answer.
-"""
+"""Async SQLAlchemy engine and session factory."""
 from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import (

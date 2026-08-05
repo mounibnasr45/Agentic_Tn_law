@@ -1,9 +1,5 @@
-"""SQLAlchemy 2.0 ORM models.
-
-Deliberately separate from app/domain/models.py. The domain must not import
-SQLAlchemy — the moment it does, the ranking logic cannot be tested without a
-database, which is the situation P2 exists to escape.
-"""
+"""SQLAlchemy 2.0 ORM models for every table: users, documents, chunks,
+conversations, messages, citations."""
 import uuid
 from datetime import UTC, datetime
 

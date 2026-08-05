@@ -1,13 +1,5 @@
-"""FastAPI application factory.
-
-    uvicorn app.main:app --workers 1
-
-WORKERS = 1, DELIBERATELY. The work here is I/O — Postgres, an LLM, and (with the default
-embedding provider) an embeddings API — not CPU, so extra workers buy no throughput while
-each one duplicates the process's memory. That mattered enormously when the encoder ran
-in-process; it still holds now that it does not. Scale with replicas behind a reverse
-proxy instead. Knowing WHY workers is 1 is worth more than setting it to 4.
-"""
+"""FastAPI application factory: routes, middleware, startup/shutdown, and
+optionally the built Angular bundle."""
 import asyncio
 import sys
 import uuid

@@ -1,3 +1,6 @@
+"""LangChain LLM client factory pointed at OpenRouter, with an explicit timeout
+and retry count."""
+
 from langchain_openai import ChatOpenAI
 
 from app.core.config import get_settings

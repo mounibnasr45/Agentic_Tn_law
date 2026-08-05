@@ -1,20 +1,5 @@
-"""Article-aware chunking for French legal text.
-
-Fixed-size splitting cuts through the middle of articles. That breaks two things:
-
-  1. A citation to "the back half of Article 264 plus the opening of Article 265" is
-     not a citation. The article is the atomic unit of law; a chunk that straddles two
-     of them cannot be attributed to either.
-  2. The evaluation golden set keys on `expected_article`. If chunks don't carry an
-     article number, the metric is not merely inaccurate — it is uncomputable.
-
-So: split on article boundaries first, and only fall back to size-based splitting
-*within* an article that is genuinely too long, carrying the article number onto every
-part. Chunking strategy then becomes an axis in the ablation harness (fixed-size vs
-article-aware), which is how we find out whether this reasoning actually holds.
-
-Pure: no langchain, no I/O.
-"""
+"""Splits a legal document into chunks on article boundaries, so a chunk never
+cuts through the middle of an article."""
 import re
 
 from app.domain.models import Chunk

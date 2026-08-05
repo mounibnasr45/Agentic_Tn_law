@@ -1,3 +1,5 @@
+"""Request/response models for conversations and their message history."""
+
 import uuid
 from datetime import datetime
 from typing import Literal

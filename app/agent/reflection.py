@@ -1,43 +1,5 @@
-"""The reflection checkpoint: catching legal terms the corpus never defined.
-
-THE GAP THIS CLOSES.
-
-The agent can retrieve the right article, cite it correctly, and still answer wrongly —
-because the article leans on a term of art it does not itself define. Golden set id 5:
-
-    "Quelle peine pour un homicide volontaire avec premeditation ?"  ->  Article 201
-
-Article 201 sets the penalty for premeditated homicide. It does NOT define préméditation;
-Tunisian law defines that elsewhere, with its own elements. The agent then either glosses
-the term from pretraining (plausible, not necessarily Tunisian doctrine) or omits it, and
-both failures look exactly like a correct answer. For a system whose system prompt says
-"ne réponds JAMAIS de mémoire", that is a correctness bug, not a polish issue.
-
-Nothing in the current pipeline can catch it: create_react_agent runs its tool loop, drafts
-once, and returns. No step re-enters retrieval once a draft exists.
-
-WHAT THIS IS CALLED. Prompted self-reflection with conditional re-retrieval — a
-post-generation, single-checkpoint variant of the active-RAG family (FLARE-Instruct,
-Self-RAG, Chain-of-Verification). "Post-generation" is the honest qualifier: the textbook
-versions interleave the check into generation, paragraph by paragraph. This checks once,
-after the draft. For answers three sentences long, per-paragraph interruption buys nothing
-and costs a generation loop we would have to own.
-
-WHY NOT TOKEN-CONFIDENCE FLARE. That is the better-known mechanism and it was the first
-choice. It was tested and abandoned this cycle for reasons outside our control: OpenRouter
-returns `logprobs: null` for deepseek-chat on every call, Gemini's current line rejects the
-parameter server-side, and langchain's FlareChain no longer exists (moved out in the 1.0
-restructuring). This design needs no token probabilities and therefore no specific provider
-— it is one more chat call, which every gateway supports.
-
-THE INVARIANT THAT MATTERS MOST: THIS FAILS OPEN.
-
-A draft already exists when this runs. Every failure path here — timeout, upstream 500,
-malformed reply, unparseable output — returns that draft unchanged. Reflection can make an
-answer better; it must never be able to stop one from being delivered. That is why the
-try/except is deliberately broad and lives HERE rather than in the caller: chat_service
-translates exceptions into 502s, and an enhancement must never reach that translation.
-"""
+"""Reflection checkpoint: re-reads a draft answer for legal terms the retrieved
+articles never defined, and searches for their definitions before replying."""
 import asyncio
 
 from langchain_core.language_models import BaseChatModel

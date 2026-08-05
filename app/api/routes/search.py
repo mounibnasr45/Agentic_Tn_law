@@ -1,3 +1,6 @@
+"""Raw retrieval with no LLM in the loop — exactly what the retriever returns,
+for debugging and for the search explorer page."""
+
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser, EmbedderDep, SessionDep

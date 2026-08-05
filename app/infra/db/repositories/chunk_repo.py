@@ -1,4 +1,5 @@
-"""Postgres-backed ChunkRepository: both retrieval arms, as SQL."""
+"""Postgres-backed chunk repository: both retrieval arms — pgvector cosine
+distance and full-text search — as SQL."""
 import math
 from collections.abc import Sequence
 

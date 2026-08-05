@@ -1,11 +1,5 @@
-"""System prompt for the legal agent.
-
-The old prompt was a text-ReAct template ("Pensée: / Action: / Observation:") that the
-model had to imitate character-for-character, with handle_parsing_errors=True to paper
-over the times it did not. LangGraph uses NATIVE TOOL-CALLING, so the model emits a
-structured tool call and there is no format to mis-imitate. Parse errors stop existing
-rather than being handled.
-"""
+"""System prompt for the legal agent, parameterised by answer language. The
+grounding and citation rules are identical in French and English."""
 
 SYSTEM_PROMPT_TEMPLATE = """Tu es un assistant juridique spécialisé dans le droit tunisien.
 

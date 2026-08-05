@@ -1,3 +1,5 @@
+"""Request/response models for registration, login and token refresh."""
+
 import uuid
 
 from pydantic import BaseModel, EmailStr, Field

@@ -1,17 +1,5 @@
-"""Ingestion and administration CLI.
-
-    python -m app.cli ingest                 # index the corpus into Postgres
-    python -m app.cli search "query"         # sanity-check retrieval from a cold process
-    python -m app.cli grant-admin <email>    # allow an account to manage the corpus
-
-The `search` command exists precisely because of bug 1: it runs in a FRESH process that
-never built an index. If it returns hybrid results, retrieval is genuinely durable. The
-old code would have returned dense-only here and said nothing.
-
-`ingest` no longer implements ingestion — it drives IngestionService, the same code the
-admin upload endpoint runs. Two implementations of chunk-and-embed would drift, and the
-eval harness only ever measures whatever the CLI produced.
-"""
+"""Operational CLI: ingest the corpus, run a cold-process search, grant an
+account admin rights."""
 import argparse
 import asyncio
 import sys

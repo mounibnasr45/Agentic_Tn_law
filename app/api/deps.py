@@ -1,11 +1,5 @@
-"""FastAPI dependencies.
-
-Depends() is how a handler declares what it needs without knowing how to build it. That
-matters here for one concrete reason: `get_current_user` can be overridden in a test with
-one line, so the auth-protected handlers are testable without minting real JWTs — and,
-more importantly, the embedding model is built ONCE in the lifespan rather than per
-request. Constructing it per request would load 450MB of weights on every call.
-"""
+"""FastAPI dependency providers: the database session, the current user, the
+embedder, and the admin-only guard."""
 from typing import Annotated
 
 from fastapi import Depends, Request

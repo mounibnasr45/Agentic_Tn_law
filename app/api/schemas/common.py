@@ -1,3 +1,5 @@
+"""Small response models shared across more than one route."""
+
 from pydantic import BaseModel
 
 

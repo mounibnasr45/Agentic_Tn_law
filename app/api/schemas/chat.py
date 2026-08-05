@@ -1,3 +1,6 @@
+"""Request/response models for asking a question and reading back its trace and
+citations."""
+
 from pydantic import BaseModel, Field
 
 

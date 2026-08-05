@@ -1,3 +1,6 @@
+"""The /ask and /ask/stream endpoints: one question in, a grounded answer and its
+trace out, either as one JSON response or as it happens."""
+
 import json
 import uuid
 from collections.abc import AsyncIterator

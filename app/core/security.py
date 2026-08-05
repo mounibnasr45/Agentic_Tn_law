@@ -1,17 +1,4 @@
-"""Password hashing and JWT.
-
-Library choices, because an interviewer will ask:
-
-  - argon2-cffi, not passlib+bcrypt. Argon2id won the Password Hashing Competition and
-    is memory-hard, so a GPU cannot parallelise an attack the way it can against bcrypt.
-    passlib's last release was 2020 and it warns on Python 3.13.
-  - PyJWT, not python-jose. python-jose is effectively unmaintained and has had
-    algorithm-confusion CVEs. PyJWT is what FastAPI's own security docs use.
-
-The previous hashing in this portfolio was `sha256(password + salt)` — a single fast
-hash, which is exactly what a GPU cracks at billions of guesses per second. Password
-hashing must be SLOW on purpose.
-"""
+"""Password hashing (argon2) and JWT issuing/verification."""
 import hashlib
 import secrets
 import uuid

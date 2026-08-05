@@ -1,3 +1,6 @@
+"""Liveness and readiness check: database reachable, embedding model loaded,
+corpus indexed."""
+
 from fastapi import APIRouter
 from sqlalchemy import func as sa_func
 from sqlalchemy import select, text

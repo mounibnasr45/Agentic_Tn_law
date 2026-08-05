@@ -1,13 +1,4 @@
-"""Domain exceptions and their HTTP mapping.
-
-The domain raises meaningful exceptions; the API boundary decides what they mean over
-HTTP. The domain must not import fastapi — a service that can only be called from a web
-handler cannot be called from the CLI, a worker, or a test.
-
-BUG 3 is why this exists. The old agent caught Exception and returned str(e) AS the
-assistant's answer, so an upstream timeout was rendered to the user as legal advice with
-a 200 OK. A failure must never be indistinguishable from an answer.
-"""
+"""Domain exceptions and the HTTP status/detail each one maps to."""
 from fastapi import HTTPException, status
 
 

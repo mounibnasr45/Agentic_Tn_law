@@ -1,4 +1,4 @@
-"""Admin API schemas."""
+"""Request/response models for the admin corpus endpoints."""
 import uuid
 from datetime import datetime
 
