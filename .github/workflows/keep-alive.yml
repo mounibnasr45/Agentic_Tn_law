@@ -1,0 +1,23 @@
+name: Keep-alive
+
+# Render's free tier spins the service down after ~15 minutes of no incoming requests;
+# the next request then pays a 30-60s cold start (container boot, migrations, embedder
+# load). A ping well under that window keeps the instance warm so real users never eat
+# the cold start.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping /api/health
+    runs-on: ubuntu-latest
+    steps:
+      - name: curl the health endpoint
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            https://agentic-tn-law-2.onrender.com/api/health
