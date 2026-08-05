@@ -102,6 +102,7 @@ export interface Strings {
   documentsSubtitle: string;
   documentsLoadFailed: string;
   documentDisplayFailed: string;
+  openInNewTab: string;
   download: string;
   downloadInstead: string;
   indexedPassages: string;
@@ -156,6 +157,20 @@ export interface Strings {
   adminOr: string;
   adminChooseFile: string;
   adminDocumentsCount: string;
+
+  // --- admin: users ---
+  adminUsersTitle: string;
+  adminUsersReadFailed: string;
+  adminColEmail: string;
+  adminColMessages: string;
+  adminColSessions: string;
+  adminColRole: string;
+  adminColActions: string;
+  adminRoleAdmin: string;
+  adminRoleUser: string;
+  adminGrantAdmin: string;
+  adminRevokeAdmin: string;
+  adminCannotRevokeSelf: string;
 
   // --- evaluation prose ---
   evalAblationTitle: string;
@@ -291,6 +306,7 @@ const fr: Strings = {
     "Les documents que l'agent cite. Consultez-les ici pour vérifier une citation directement à la source.",
   documentsLoadFailed: 'Impossible de charger les textes sources.',
   documentDisplayFailed: "Impossible d'afficher ce document.",
+  openInNewTab: 'Ouvrir dans un nouvel onglet',
   download: 'Télécharger',
   downloadInstead: 'Télécharger à la place',
   indexedPassages: 'passages indexés',
@@ -344,6 +360,19 @@ const fr: Strings = {
   adminOr: 'ou',
   adminChooseFile: 'Choisir un fichier',
   adminDocumentsCount: 'document(s)',
+
+  adminUsersTitle: 'Utilisateurs',
+  adminUsersReadFailed: 'Impossible de charger la liste des utilisateurs.',
+  adminColEmail: 'Email',
+  adminColMessages: 'Messages',
+  adminColSessions: 'Sessions',
+  adminColRole: 'Rôle',
+  adminColActions: 'Actions',
+  adminRoleAdmin: 'Administrateur',
+  adminRoleUser: 'Utilisateur',
+  adminGrantAdmin: 'Accorder les droits admin',
+  adminRevokeAdmin: 'Retirer les droits admin',
+  adminCannotRevokeSelf: 'Vous ne pouvez pas retirer vos propres droits admin',
 
   evalAblationTitle: 'Ablation : quelle configuration gagne ?',
   evalMethod: 'Méthode',
@@ -484,6 +513,7 @@ const en: Strings = {
     'The documents the agent cites. Read them here to check a citation directly against its source.',
   documentsLoadFailed: 'Could not load the source texts.',
   documentDisplayFailed: 'Could not display this document.',
+  openInNewTab: 'Open in a new tab',
   download: 'Download',
   downloadInstead: 'Download instead',
   indexedPassages: 'indexed passages',
@@ -537,6 +567,19 @@ const en: Strings = {
   adminOr: 'or',
   adminChooseFile: 'Choose a file',
   adminDocumentsCount: 'document(s)',
+
+  adminUsersTitle: 'Users',
+  adminUsersReadFailed: 'Could not load the user list.',
+  adminColEmail: 'Email',
+  adminColMessages: 'Messages',
+  adminColSessions: 'Sessions',
+  adminColRole: 'Role',
+  adminColActions: 'Actions',
+  adminRoleAdmin: 'Administrator',
+  adminRoleUser: 'User',
+  adminGrantAdmin: 'Grant admin rights',
+  adminRevokeAdmin: 'Revoke admin rights',
+  adminCannotRevokeSelf: 'You cannot revoke your own admin rights',
 
   evalAblationTitle: 'Ablation: which configuration wins?',
   evalMethod: 'Method',

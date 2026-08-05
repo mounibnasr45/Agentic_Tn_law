@@ -6,11 +6,12 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from langchain_core.messages import HumanMessage
 from openai import APIConnectionError as OpenAIAPIConnectionError
 from openai import AuthenticationError as OpenAIAuthenticationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.graph import MAX_ITERATIONS, build_agent, build_reflection_llm
@@ -21,6 +22,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import (
     ConversationNotFound,
     CorpusNotReady,
+    DailyMessageLimitExceeded,
     UpstreamLLMAuthenticationError,
     UpstreamLLMConnectionError,
     UpstreamLLMError,
@@ -94,6 +96,34 @@ class ChatService:
             raise ConversationNotFound()
         return conversation
 
+    async def _enforce_daily_limit(self, user: User, settings: Settings) -> None:
+        """Refuse a new question once this user has sent `daily_message_limit` today.
+
+        Counts real rows rather than a separate counter column, so there is nothing that
+        can drift from what was actually persisted: a counter incremented on send and a
+        `messages` table are two sources of truth for the same fact, and the count is
+        already cheap (one indexed join, one row's worth of aggregate).
+
+        UTC calendar day, not the user's local day: a server-side boundary that depends on
+        client timezone is one a client can manipulate, and "resets at midnight somewhere"
+        is a worse guarantee than "resets at a fixed, known instant".
+        """
+        if user.is_admin:
+            return
+
+        start_of_day = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        sent_today = await self._session.scalar(
+            select(func.count(Message.id))
+            .join(Conversation, Conversation.id == Message.conversation_id)
+            .where(
+                Conversation.user_id == user.id,
+                Message.role == "user",
+                Message.created_at >= start_of_day,
+            )
+        )
+        if (sent_today or 0) >= settings.daily_message_limit:
+            raise DailyMessageLimitExceeded()
+
     async def ask(
         self,
         user: User,
@@ -105,6 +135,8 @@ class ChatService:
 
         if await PostgresChunkRepository(self._session).count() == 0:
             raise CorpusNotReady()
+
+        await self._enforce_daily_limit(user, settings)
 
         conversation = await self._conversation_for(user, conversation_id)
 
@@ -151,6 +183,7 @@ class ChatService:
         """
         if await PostgresChunkRepository(self._session).count() == 0:
             raise CorpusNotReady()
+        await self._enforce_daily_limit(user, get_settings())
         return await self._conversation_for(user, conversation_id)
 
     async def stream_answer(

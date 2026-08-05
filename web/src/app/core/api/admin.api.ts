@@ -2,7 +2,7 @@ import { HttpClient, HttpEvent, HttpEventType, HttpRequest } from '@angular/comm
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { API_BASE } from './api-base';
-import { CorpusStatus, UploadAccepted } from './api.types';
+import { AdminUser, CorpusStatus, UploadAccepted } from './api.types';
 
 /** What the upload stream emits: bytes on the wire, then the server's answer. */
 export type UploadProgress =
@@ -54,5 +54,23 @@ export class AdminApi {
   /** Every document plus corpus totals. Cheap by design — the admin screen polls it. */
   corpus(): Observable<CorpusStatus> {
     return this.http.get<CorpusStatus>(`${API_BASE}/admin/corpus`);
+  }
+
+  /** Every account, with real message and session counts — not a poll target, loaded once. */
+  users(): Observable<AdminUser[]> {
+    return this.http.get<AdminUser[]>(`${API_BASE}/admin/users`);
+  }
+
+  /**
+   * Grant or revoke administrator privileges.
+   *
+   * Returns the updated row rather than void: the server also recomputes message_count
+   * and session_count for it, and re-fetching the whole list just to refresh one row's
+   * numbers would be wasteful.
+   */
+  setAdmin(userId: string, isAdmin: boolean): Observable<AdminUser> {
+    return this.http.patch<AdminUser>(`${API_BASE}/admin/users/${userId}`, {
+      is_admin: isAdmin,
+    });
   }
 }

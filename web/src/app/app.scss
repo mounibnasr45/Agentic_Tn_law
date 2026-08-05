@@ -5,6 +5,10 @@
   // dvh, not vh: on mobile browsers vh includes the collapsing address bar, which leaves
   // the composer hidden below the fold until the user scrolls.
   height: 100dvh;
+  // A safety net, not the fix itself (that is .app-nav's own min-width:0 + overflow-x
+  // below): if any toolbar content ever again grows wider than the viewport, this stops
+  // it scrolling the ENTIRE page sideways rather than just clipping at the edge.
+  overflow-x: hidden;
 }
 
 .skip-link {
@@ -58,6 +62,27 @@
   display: flex;
   gap: 0.25rem;
   margin-left: 1rem;
+  // The same trap as .preview-title in documents-page: a flex item's default min-width is
+  // `auto` (at least as wide as its content), which would make the TOOLBAR grow wider than
+  // the viewport instead of ever letting this scroll — the overflow-x below would exist
+  // but never engage. This is what actually allows the nav to shrink and scroll internally.
+  min-width: 0;
+  // Five links plus the brand mark, both toggles and (signed out) two auth buttons do not
+  // fit a 360px phone screen. Without this the toolbar was overflowing the viewport width
+  // itself, which scrolls the WHOLE PAGE horizontally — a much worse bug than a scrollable
+  // nav strip. This keeps the overflow contained to the nav and swipeable, at the cost of
+  // needing a swipe to reach the last item on the narrowest phones.
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  // Without this, flex's default shrink-to-fit squeezes each link's text before the row
+  // ever scrolls, wrapping "Discussion" onto two lines instead of just scrolling past it.
+  a {
+    flex: 0 0 auto;
+  }
 }
 
 .active-link {

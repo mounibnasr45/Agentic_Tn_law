@@ -153,6 +153,8 @@ describe('page render smoke tests', () => {
       embedding_model: 'intfloat/multilingual-e5-small',
       is_ingesting: false,
     });
+    // The user table is fetched on construction too, independently of the corpus poll.
+    httpMock.expectOne('/api/admin/users').flush([]);
     await fixture.whenStable();
 
     expect(text(fixture)).toContain('Glissez un PDF ici');

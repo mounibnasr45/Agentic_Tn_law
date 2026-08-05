@@ -99,10 +99,11 @@ async def _register(client, email: str) -> dict:
 
 
 async def _make_admin(engine, email: str) -> None:
-    """Promote via SQL — the same effect as `python -m app.cli grant-admin`.
+    """Promote via SQL, for tests that need an admin before any admin exists to grant one.
 
-    Deliberately not exposed over HTTP anywhere in the app, which is why the test has to
-    reach into the database to do it.
+    `PATCH /api/admin/users/{id}` (see TestUserManagement) can promote a SECOND account —
+    but making the FIRST one still has to happen out of band, exactly like a fresh
+    deployment relies on `python -m app.cli grant-admin` for the same reason.
     """
     async with engine.begin() as conn:
         await conn.execute(text("UPDATE users SET is_admin = true WHERE email = :e"), {"e": email})
@@ -326,3 +327,71 @@ class TestCorpusStatus:
             detail = (await client.get("/api/admin/corpus", headers=headers)).json()
 
         assert all(isinstance(d["progress"], float) for d in detail["documents"])
+
+
+class TestUserManagement:
+    async def test_an_ordinary_user_cannot_list_users(self, app_and_engine):
+        app, _ = app_and_engine
+        async with await _client(app) as client:
+            headers = await _register(client, "nobody@tunis.tn")
+            response = await client.get("/api/admin/users", headers=headers)
+        assert response.status_code == 403
+
+    async def test_the_listing_reports_real_message_and_session_counts(self, app_and_engine):
+        app, engine = app_and_engine
+        async with await _client(app) as client:
+            await _register(client, "alice@tunis.tn")
+            # A second login is a second refresh token — a second "session" — without
+            # touching the /ask path this fixture has no LLM mock for.
+            await client.post(
+                "/api/auth/login",
+                json={"email": "alice@tunis.tn", "password": "correct-horse-battery"},
+            )
+
+            admin = await _admin_headers(client, engine)
+            listing = (await client.get("/api/admin/users", headers=admin)).json()
+            users = {u["email"]: u for u in listing}
+
+        assert users["alice@tunis.tn"]["session_count"] == 2
+        assert users["alice@tunis.tn"]["is_admin"] is False
+        assert users["root@tunis.tn"]["is_admin"] is True
+
+    async def test_an_ordinary_user_cannot_grant_themselves_admin(self, app_and_engine):
+        app, _ = app_and_engine
+        async with await _client(app) as client:
+            headers = await _register(client, "nobody@tunis.tn")
+            me = (await client.get("/api/auth/me", headers=headers)).json()
+            response = await client.patch(
+                f"/api/admin/users/{me['id']}", json={"is_admin": True}, headers=headers
+            )
+        assert response.status_code == 403
+
+    async def test_an_admin_can_grant_and_then_revoke_a_colleague(self, app_and_engine):
+        app, engine = app_and_engine
+        async with await _client(app) as client:
+            colleague = await _register(client, "colleague@tunis.tn")
+            colleague_id = (await client.get("/api/auth/me", headers=colleague)).json()["id"]
+            admin = await _admin_headers(client, engine)
+
+            granted = await client.patch(
+                f"/api/admin/users/{colleague_id}", json={"is_admin": True}, headers=admin
+            )
+            assert granted.status_code == 200
+            assert granted.json()["is_admin"] is True
+
+            revoked = await client.patch(
+                f"/api/admin/users/{colleague_id}", json={"is_admin": False}, headers=admin
+            )
+        assert revoked.json()["is_admin"] is False
+
+    async def test_an_admin_cannot_revoke_their_own_admin_status(self, app_and_engine):
+        """A lone admin locking themselves out has no one left to undo it — a second admin
+        can still revoke this one, but this one cannot revoke themselves."""
+        app, engine = app_and_engine
+        async with await _client(app) as client:
+            admin = await _admin_headers(client, engine)
+            me = (await client.get("/api/auth/me", headers=admin)).json()
+            response = await client.patch(
+                f"/api/admin/users/{me['id']}", json={"is_admin": False}, headers=admin
+            )
+        assert response.status_code == 400

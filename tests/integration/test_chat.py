@@ -345,3 +345,51 @@ class TestBug4RealCitations:
             )
 
         assert response.status_code == 404
+
+
+class TestDailyMessageLimit:
+    async def test_a_sixth_question_in_one_day_is_rejected(self, app_and_engine):
+        app, _ = app_and_engine
+
+        async with await _client(app) as client:
+            alice = await _register(client, "alice@tunis.tn")
+
+            with patch("app.agent.graph.ChatOpenAI", return_value=searching_model()):
+                for _ in range(5):
+                    response = await client.post(
+                        "/api/ask",
+                        json={"question": "Quelle peine pour un vol avec arme ?"},
+                        headers=alice,
+                    )
+                    assert response.status_code == 200
+
+                sixth = await client.post(
+                    "/api/ask",
+                    json={"question": "Quelle peine pour un vol avec arme ?"},
+                    headers=alice,
+                )
+
+        assert sixth.status_code == 429
+
+    async def test_an_admin_is_exempt_from_the_daily_limit(self, app_and_engine):
+        app, engine = app_and_engine
+
+        async with await _client(app) as client:
+            alice = await _register(client, "alice@tunis.tn")
+
+            # The token only names a user id — is_admin is read fresh from the database on
+            # every request (CurrentUser), never from the token itself — so this same
+            # already-issued token reflects the flip below with no re-login needed.
+            maker = async_sessionmaker(engine, expire_on_commit=False)
+            async with maker() as session:
+                await session.execute(text("UPDATE users SET is_admin = true"))
+                await session.commit()
+
+            with patch("app.agent.graph.ChatOpenAI", return_value=searching_model()):
+                for _ in range(7):
+                    response = await client.post(
+                        "/api/ask",
+                        json={"question": "Quelle peine pour un vol avec arme ?"},
+                        headers=alice,
+                    )
+                    assert response.status_code == 200

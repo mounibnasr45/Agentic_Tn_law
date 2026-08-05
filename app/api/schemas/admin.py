@@ -56,3 +56,31 @@ class UploadAccepted(BaseModel):
     # work was scheduled. The UI says "déjà indexé" instead of showing a bar that will
     # never move.
     processing: bool
+
+
+class AdminUserOut(BaseModel):
+    """One row of the admin screen's user table.
+
+    message_count and session_count are read-model numbers computed alongside the row
+    (see list_users in admin.py), not columns on User — a running counter would be a
+    second source of truth for facts the messages/refresh_tokens tables already hold, and
+    one more thing that could drift from what actually happened.
+    """
+
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    email: str
+    is_admin: bool
+    is_active: bool
+    created_at: datetime
+    # Total user-authored messages ever sent, not today's count: this is an activity
+    # figure for the admin screen, not the same number the daily rate limit checks.
+    message_count: int
+    # Active refresh tokens: not revoked, not expired. Each one is roughly one signed-in
+    # device or browser, which is the closest thing this app has to a session count.
+    session_count: int
+
+
+class AdminUserUpdate(BaseModel):
+    is_admin: bool

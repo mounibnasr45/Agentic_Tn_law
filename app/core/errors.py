@@ -111,6 +111,26 @@ class DocumentNotFound(DomainError):
     detail = "Document introuvable."
 
 
+class UserNotFound(DomainError):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "Utilisateur introuvable."
+
+
+class CannotRevokeSelf(DomainError):
+    # 400: the request is well-formed and the caller IS an admin, they are just asking for
+    # something that would lock them out of the screen they are using to ask for it. A
+    # second admin can still revoke this one; nothing here is a permanent restriction.
+    status_code = status.HTTP_400_BAD_REQUEST
+    detail = "Vous ne pouvez pas retirer vos propres droits administrateur."
+
+
+class DailyMessageLimitExceeded(DomainError):
+    # 429, not 403: this is not a permissions question, it is a quota that resets. A
+    # client can legitimately retry later, which 403 does not communicate.
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    detail = "Limite de 5 messages par jour atteinte. Réessayez demain."
+
+
 def to_http_exception(error: DomainError) -> HTTPException:
     unauthorized = error.status_code == status.HTTP_401_UNAUTHORIZED
     headers = {"WWW-Authenticate": "Bearer"} if unauthorized else None

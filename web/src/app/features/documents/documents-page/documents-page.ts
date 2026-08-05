@@ -1,3 +1,4 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -6,11 +7,12 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { map } from 'rxjs';
 import { CorpusDocument } from '../../../core/api/api.types';
 import { DocumentsApi } from '../../../core/api/documents.api';
 import { I18nService } from '../../../core/i18n/i18n.service';
@@ -41,6 +43,21 @@ export class DocumentsPage {
   protected readonly t = inject(I18nService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly breakpoints = inject(BreakpointObserver);
+
+  /**
+   * Mobile Chrome (and most mobile browsers) cannot reliably render a PDF blob inline in
+   * an <iframe> — it falls back to its own native "file ready" interstitial rendered
+   * WITHIN the iframe's box, which is a small floating card with a generic filename and an
+   * "Open" button, not a broken layout this component's CSS can reach or fix. Below this
+   * width the template skips the iframe entirely and shows a plain "open in a new tab"
+   * panel instead, which every mobile browser handles correctly with its own full PDF
+   * viewer — a better mobile experience than a cramped iframe would have been anyway.
+   */
+  protected readonly isHandset = toSignal(
+    this.breakpoints.observe('(max-width: 640px)').pipe(map((state) => state.matches)),
+    { initialValue: false },
+  );
 
   protected readonly documents = signal<CorpusDocument[]>([]);
   protected readonly selected = signal<CorpusDocument | null>(null);
@@ -115,6 +132,13 @@ export class DocumentsPage {
           this.failed.set(true);
         },
       });
+  }
+
+  /** The mobile fallback: a real browser tab and its native PDF viewer, not an iframe. */
+  protected openInNewTab(): void {
+    if (this.objectUrl) {
+      window.open(this.objectUrl, '_blank');
+    }
   }
 
   protected download(document: CorpusDocument): void {

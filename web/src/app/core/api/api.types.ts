@@ -184,6 +184,18 @@ export interface UploadAccepted {
   processing: boolean;
 }
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  is_admin: boolean;
+  is_active: boolean;
+  created_at: string;
+  /** Total user-authored messages ever sent — an activity figure, not today's count. */
+  message_count: number;
+  /** Active (non-revoked, non-expired) refresh tokens — roughly one per signed-in device. */
+  session_count: number;
+}
+
 // ---------------------------------------------------------------------------
 // Agent trace  <- app/api/schemas/conversation.py
 // ---------------------------------------------------------------------------

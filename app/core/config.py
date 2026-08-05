@@ -107,6 +107,15 @@ class Settings(BaseSettings):
     agent_request_timeout: int = 120
     agent_verbose: bool = False
 
+    # Each question is a real LLM round trip (plus a reflection pass, plus an embedding
+    # call), which is the actual cost driver on a free-tier deployment with no billing
+    # ceiling of its own. Counted from `messages` directly (role='user', joined through the
+    # caller's own conversations) rather than a separate counter column, so there is
+    # nothing to keep in sync and nothing that can drift from what was actually sent.
+    # Admins are exempt — see ChatService.ask/prepare_stream — because testing the service
+    # they operate should not compete with the same budget a visitor has.
+    daily_message_limit: int = 5
+
     # --- Reflection checkpoint ---
     # After the agent drafts an answer, one extra LLM call asks whether the draft leans on a
     # legal term of art that the retrieved articles never defined ("préméditation" appears in

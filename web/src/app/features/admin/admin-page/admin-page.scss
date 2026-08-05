@@ -252,3 +252,28 @@
 mat-progress-bar.failed {
   --mdc-linear-progress-active-indicator-color: #b3261e;
 }
+
+/* --- users ------------------------------------------------------------------------- */
+
+.users-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+}
+
+.users {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  min-width: 640px;
+}

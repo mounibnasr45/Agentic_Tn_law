@@ -1,14 +1,23 @@
 """Admin endpoints for corpus management: upload a PDF, watch it get indexed,
 inspect status."""
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, File, UploadFile, status
+from sqlalchemy import func, select
 
 from app.api.deps import CurrentAdmin, EmbedderDep, SessionDep
-from app.api.schemas.admin import CorpusStatusOut, DocumentOut, UploadAccepted
+from app.api.schemas.admin import (
+    AdminUserOut,
+    AdminUserUpdate,
+    CorpusStatusOut,
+    DocumentOut,
+    UploadAccepted,
+)
 from app.core.config import get_settings
-from app.core.errors import DocumentNotFound, to_http_exception
+from app.core.errors import CannotRevokeSelf, DocumentNotFound, UserNotFound, to_http_exception
 from app.core.logging import get_logger
+from app.infra.db.models import Conversation, Message, RefreshToken, User
 from app.services.ingestion_service import IngestionService
 
 log = get_logger(__name__)
@@ -115,3 +124,110 @@ async def document_detail(
         raise to_http_exception(DocumentNotFound())
 
     return DocumentOut.model_validate(document)
+
+
+@router.get("/users", response_model=list[AdminUserOut])
+async def list_users(admin: CurrentAdmin, session: SessionDep) -> list[AdminUserOut]:
+    """Every account, with how much they have used the service and whether they are an
+    administrator.
+
+    Three separate grouped counts rather than one query joining all three tables: a user
+    with both many messages and many sessions would multiply rows across a naive join
+    (every message paired with every session), inflating both counts. Aggregating each
+    relationship on its own and combining the results in Python is the straightforward way
+    to avoid that, for a table small enough that three round trips cost nothing that
+    matters here.
+    """
+    users = (await session.scalars(select(User).order_by(User.created_at))).all()
+
+    message_counts = dict(
+        (
+            await session.execute(
+                select(Conversation.user_id, func.count(Message.id))
+                .join(Message, Message.conversation_id == Conversation.id)
+                .where(Message.role == "user")
+                .group_by(Conversation.user_id)
+            )
+        ).all()
+    )
+
+    now = datetime.now(UTC)
+    session_counts = dict(
+        (
+            await session.execute(
+                select(RefreshToken.user_id, func.count(RefreshToken.id))
+                .where(RefreshToken.revoked_at.is_(None), RefreshToken.expires_at > now)
+                .group_by(RefreshToken.user_id)
+            )
+        ).all()
+    )
+
+    return [
+        AdminUserOut(
+            id=user.id,
+            email=user.email,
+            is_admin=user.is_admin,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            message_count=message_counts.get(user.id, 0),
+            session_count=session_counts.get(user.id, 0),
+        )
+        for user in users
+    ]
+
+
+@router.patch("/users/{user_id}", response_model=AdminUserOut)
+async def update_user_admin_status(
+    user_id: str,
+    payload: AdminUserUpdate,
+    admin: CurrentAdmin,
+    session: SessionDep,
+) -> AdminUserOut:
+    """Grant or revoke administrator privileges.
+
+    This is the ONLY way to make a SECOND admin — `python -m app.cli grant-admin` remains
+    the only way to make the FIRST one, since bootstrapping a fresh deployment has no admin
+    yet to click this button. Self-revocation is refused: an admin locking themselves out
+    with no one left to undo it is a worse failure mode than the mild inconvenience of
+    asking a colleague, and a second admin can still revoke this one.
+    """
+    if str(admin.id) == user_id and not payload.is_admin:
+        raise to_http_exception(CannotRevokeSelf())
+
+    user = await session.get(User, user_id)
+    if user is None:
+        raise to_http_exception(UserNotFound())
+
+    user.is_admin = payload.is_admin
+    await session.commit()
+
+    log.info(
+        "admin_status_changed",
+        target_user_id=user_id,
+        is_admin=payload.is_admin,
+        changed_by=str(admin.id),
+    )
+
+    message_count = await session.scalar(
+        select(func.count(Message.id))
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .where(Conversation.user_id == user.id, Message.role == "user")
+    )
+    now = datetime.now(UTC)
+    session_count = await session.scalar(
+        select(func.count(RefreshToken.id)).where(
+            RefreshToken.user_id == user.id,
+            RefreshToken.revoked_at.is_(None),
+            RefreshToken.expires_at > now,
+        )
+    )
+
+    return AdminUserOut(
+        id=user.id,
+        email=user.email,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        message_count=message_count or 0,
+        session_count=session_count or 0,
+    )

@@ -16,7 +16,8 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription, timer } from 'rxjs';
 import { AdminApi } from '../../../core/api/admin.api';
-import { AdminDocument, CorpusStatus } from '../../../core/api/api.types';
+import { AdminDocument, AdminUser, CorpusStatus } from '../../../core/api/api.types';
+import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 
 /** How often to re-read corpus status while an ingest is in flight. */
@@ -54,6 +55,7 @@ export class AdminPage {
 
   private readonly api = inject(AdminApi);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly authStore = inject(AuthStore);
 
   protected readonly corpus = signal<CorpusStatus | null>(null);
   protected readonly loadFailed = signal(false);
@@ -67,6 +69,13 @@ export class AdminPage {
   protected readonly isDragging = signal(false);
 
   protected readonly columns = ['title', 'status', 'progress', 'chunks', 'indexed'] as const;
+  protected readonly userColumns = [
+    'email',
+    'role',
+    'messages',
+    'sessions',
+    'actions',
+  ] as const;
 
   protected readonly documents = computed(() => this.corpus()?.documents ?? []);
   protected readonly isBusy = computed(
@@ -75,8 +84,55 @@ export class AdminPage {
 
   private poll: Subscription | null = null;
 
+  // --- users ------------------------------------------------------------------------
+
+  protected readonly users = signal<AdminUser[]>([]);
+  protected readonly usersLoadFailed = signal(false);
+  /** The row currently mid-request, so only ITS button shows a pending state — not every
+   * row's, which would make an admin wonder whether they clicked the right one. */
+  protected readonly pendingUserId = signal<string | null>(null);
+
   constructor() {
     this.refresh();
+    this.loadUsers();
+  }
+
+  private loadUsers(): void {
+    this.api
+      .users()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (users) => {
+          this.users.set(users);
+          this.usersLoadFailed.set(false);
+        },
+        error: () => this.usersLoadFailed.set(true),
+      });
+  }
+
+  protected isSelf(user: AdminUser): boolean {
+    return this.authStore.user()?.id === user.id;
+  }
+
+  protected toggleAdmin(user: AdminUser): void {
+    this.pendingUserId.set(user.id);
+
+    this.api
+      .setAdmin(user.id, !user.is_admin)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        // The server's own detail ("Vous ne pouvez pas retirer vos propres droits
+        // administrateur.") already reaches the user via httpErrorInterceptor on error,
+        // so error handling here is only clearing the pending state — the button, not a
+        // second message.
+        next: (updated) => {
+          this.users.update((current) =>
+            current.map((u) => (u.id === updated.id ? updated : u)),
+          );
+          this.pendingUserId.set(null);
+        },
+        error: () => this.pendingUserId.set(null),
+      });
   }
 
   // --- upload ---------------------------------------------------------------------
