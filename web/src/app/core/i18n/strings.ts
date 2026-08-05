@@ -21,6 +21,7 @@ export interface Strings {
   navStatus: string;
   navAdmin: string;
   mainNavLabel: string;
+  openNavMenu: string;
   logout: string;
   languageToggle: string;
   themeLight: string;
@@ -219,6 +220,7 @@ const fr: Strings = {
   navStatus: 'État',
   navAdmin: 'Corpus',
   mainNavLabel: 'Navigation principale',
+  openNavMenu: 'Ouvrir le menu de navigation',
   logout: 'Se déconnecter',
   languageToggle: 'Switch to English',
   themeLight: 'Thème clair — cliquer pour le thème sombre',
@@ -425,6 +427,7 @@ const en: Strings = {
   navStatus: 'Status',
   navAdmin: 'Corpus',
   mainNavLabel: 'Main navigation',
+  openNavMenu: 'Open navigation menu',
   logout: 'Sign out',
   languageToggle: 'Passer en français',
   themeLight: 'Light theme — click for dark',

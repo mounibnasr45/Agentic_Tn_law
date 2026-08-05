@@ -67,11 +67,10 @@
   // the viewport instead of ever letting this scroll — the overflow-x below would exist
   // but never engage. This is what actually allows the nav to shrink and scroll internally.
   min-width: 0;
-  // Five links plus the brand mark, both toggles and (signed out) two auth buttons do not
-  // fit a 360px phone screen. Without this the toolbar was overflowing the viewport width
-  // itself, which scrolls the WHOLE PAGE horizontally — a much worse bug than a scrollable
-  // nav strip. This keeps the overflow contained to the nav and swipeable, at the cost of
-  // needing a swipe to reach the last item on the narrowest phones.
+  // Below 640px app.html swaps this strip for a menu button instead, so this only has to
+  // cover tablet widths where the links still fit on one row but just barely — a safety
+  // net against the toolbar overflowing the viewport width itself, which would scroll the
+  // WHOLE PAGE horizontally, rather than the CSS actually needing to be reached by touch.
   overflow-x: auto;
   scrollbar-width: none;
   &::-webkit-scrollbar {

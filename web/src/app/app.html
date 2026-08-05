@@ -13,18 +13,39 @@
   </a>
 
   @if (store.isAuthenticated()) {
-    <nav class="app-nav" [attr.aria-label]="t.s().mainNavLabel">
-      <a mat-button routerLink="/chat" routerLinkActive="active-link">{{ t.s().navChat }}</a>
-      <a mat-button routerLink="/search" routerLinkActive="active-link">{{ t.s().navSearch }}</a>
-      <a mat-button routerLink="/documents" routerLinkActive="active-link">{{ t.s().navDocuments }}</a>
-      <a mat-button routerLink="/evaluation" routerLinkActive="active-link">{{ t.s().navEvaluation }}</a>
-      <a mat-button routerLink="/status" routerLinkActive="active-link">{{ t.s().navStatus }}</a>
-      <!-- Hidden from non-admins as a courtesy, not as a control: the enforcement is
-           CurrentAdmin in app/api/deps.py, re-checked on every admin request. -->
-      @if (store.user()?.is_admin) {
-        <a mat-button routerLink="/admin" routerLinkActive="active-link">{{ t.s().navAdmin }}</a>
-      }
-    </nav>
+    @if (isHandset()) {
+      <button
+        matIconButton
+        [matMenuTriggerFor]="navMenu"
+        [matTooltip]="t.s().openNavMenu"
+        [attr.aria-label]="t.s().openNavMenu"
+      >
+        <mat-icon>menu</mat-icon>
+      </button>
+      <mat-menu #navMenu="matMenu" [attr.aria-label]="t.s().mainNavLabel">
+        <a mat-menu-item routerLink="/chat" routerLinkActive="active-link">{{ t.s().navChat }}</a>
+        <a mat-menu-item routerLink="/search" routerLinkActive="active-link">{{ t.s().navSearch }}</a>
+        <a mat-menu-item routerLink="/documents" routerLinkActive="active-link">{{ t.s().navDocuments }}</a>
+        <a mat-menu-item routerLink="/evaluation" routerLinkActive="active-link">{{ t.s().navEvaluation }}</a>
+        <a mat-menu-item routerLink="/status" routerLinkActive="active-link">{{ t.s().navStatus }}</a>
+        @if (store.user()?.is_admin) {
+          <a mat-menu-item routerLink="/admin" routerLinkActive="active-link">{{ t.s().navAdmin }}</a>
+        }
+      </mat-menu>
+    } @else {
+      <nav class="app-nav" [attr.aria-label]="t.s().mainNavLabel">
+        <a mat-button routerLink="/chat" routerLinkActive="active-link">{{ t.s().navChat }}</a>
+        <a mat-button routerLink="/search" routerLinkActive="active-link">{{ t.s().navSearch }}</a>
+        <a mat-button routerLink="/documents" routerLinkActive="active-link">{{ t.s().navDocuments }}</a>
+        <a mat-button routerLink="/evaluation" routerLinkActive="active-link">{{ t.s().navEvaluation }}</a>
+        <a mat-button routerLink="/status" routerLinkActive="active-link">{{ t.s().navStatus }}</a>
+        <!-- Hidden from non-admins as a courtesy, not as a control: the enforcement is
+             CurrentAdmin in app/api/deps.py, re-checked on every admin request. -->
+        @if (store.user()?.is_admin) {
+          <a mat-button routerLink="/admin" routerLinkActive="active-link">{{ t.s().navAdmin }}</a>
+        }
+      </nav>
+    }
   }
 
   <span class="app-spacer"></span>
