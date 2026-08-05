@@ -1,13 +1,3 @@
----
-title: Agent Juridique Tunisien
-emoji: ⚖️
-colorFrom: red
-colorTo: gray
-sdk: docker
-app_port: 8000
-pinned: false
-license: mit
----
 
 <!-- The block above is Hugging Face Spaces configuration, not documentation. Spaces reads
      it from this file to know how to build and expose the container: `sdk: docker` selects
