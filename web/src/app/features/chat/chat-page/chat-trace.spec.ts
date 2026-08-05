@@ -235,4 +235,35 @@ describe('chat page — agent trace rendering', () => {
     expect(body).toContain("Raisonnement de l'agent");
     expect(body).toContain('source citée');
   });
+
+  it('sends a second message in the same session with the first one\'s conversation id', async () => {
+    // THE BUG: send() rewrites the URL after the first message via Location.replaceState
+    // (see the comment in chat-page.ts), which updates the address bar WITHOUT re-resolving
+    // the route — so the conversationId input, sourced from the route param, stays undefined
+    // for the rest of the session. A second send() that read that input instead of the
+    // internally-tracked loadedId would ask with conversation_id: null, silently starting a
+    // brand-new conversation per message instead of continuing the first one.
+    const fixture = await mountChat();
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    httpMock.expectOne('/api/conversations').flush([]);
+    await fixture.whenStable();
+
+    const page = fixture.componentInstance as unknown as { send(q: string): void };
+    page.send('hello');
+    await fixture.whenStable();
+
+    flushStream(httpMock, '/api/ask/stream', [{ event: 'final', data: TRACE_RESPONSE }]);
+    await fixture.whenStable();
+    httpMock.match('/api/conversations').forEach((r) => r.flush([]));
+    await fixture.whenStable();
+
+    page.send('hey');
+    await fixture.whenStable();
+
+    const second = httpMock.expectOne('/api/ask/stream');
+    expect((second.request.body as { conversation_id: string | null }).conversation_id).toBe(
+      TRACE_RESPONSE.conversation_id,
+    );
+  });
 });

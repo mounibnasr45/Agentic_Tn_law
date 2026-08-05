@@ -125,6 +125,17 @@ export class ChatPage {
   protected readonly drawerOpen = signal(true);
 
   private readonly log = viewChild<ElementRef<HTMLElement>>('log');
+  /**
+   * The conversation actually in play — NOT the same thing as `conversationId()`. That
+   * input only reflects the route param, and `send()` rewrites the URL via
+   * `Location.replaceState` rather than `router.navigate` (see the comment below), which
+   * updates the address bar without ever re-resolving the route. Reading `conversationId()`
+   * after the first message of a brand-new conversation would keep seeing `undefined`
+   * forever, so every later message in the same session sent `null` and silently started
+   * its own new conversation instead of continuing this one. `loadedId` is updated by hand
+   * at the one point a new id is minted, so it never drifts from reality like the route
+   * input does.
+   */
   private readonly loadedId = signal<string | null>(null);
 
   constructor() {
@@ -207,7 +218,7 @@ export class ChatPage {
       this.drawerOpen.set(false);
     }
 
-    this.chatApi.askStream(question, this.conversationId() ?? null).subscribe({
+    this.chatApi.askStream(question, this.loadedId()).subscribe({
       next: (event) => this.applyStreamEvent(assistantId, event),
       error: () => this.failSend(assistantId),
       // No `complete` handler: the 'final' branch of applyStreamEvent() already does
@@ -244,7 +255,7 @@ export class ChatPage {
         );
         this.pending.set(false);
 
-        if (this.conversationId() === undefined) {
+        if (this.loadedId() === null) {
           // replaceState, NOT router.navigate — and this is the whole reason citations and
           // traces used to vanish the instant a NEW conversation got its id.
           //
