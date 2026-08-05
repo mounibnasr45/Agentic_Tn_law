@@ -13,6 +13,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CorpusDocument } from '../../../core/api/api.types';
 import { DocumentsApi } from '../../../core/api/documents.api';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * Read the sources, in the app, without downloading them first.
@@ -36,6 +37,8 @@ import { DocumentsApi } from '../../../core/api/documents.api';
 })
 export class DocumentsPage {
   private readonly api = inject(DocumentsApi);
+
+  protected readonly t = inject(I18nService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly destroyRef = inject(DestroyRef);
 

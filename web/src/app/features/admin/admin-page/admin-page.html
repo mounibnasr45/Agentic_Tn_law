@@ -1,6 +1,6 @@
 <div class="admin-page">
   <header class="page-header">
-    <h1>Corpus juridique</h1>
+    <h1>{{ t.s().adminTitle }}</h1>
     <p class="subtitle">
       Ajoutez un texte de loi au format PDF. Il est découpé par article, encodé, puis
       indexé — après quoi l'agent peut le citer.
@@ -19,7 +19,7 @@
     <mat-icon class="dropzone-icon">cloud_upload</mat-icon>
 
     @if (uploadPercent() === null) {
-      <p class="dropzone-title">Glissez un PDF ici</p>
+      <p class="dropzone-title">{{ t.s().adminDropzone }}</p>
       <p class="dropzone-hint">ou</p>
       <!-- The input is visually hidden but still focusable, so the control stays usable
            from the keyboard — a div with a click handler would not be. -->
@@ -36,7 +36,7 @@
     } @else {
       <p class="dropzone-title">Envoi… {{ uploadPercent() }}%</p>
       <mat-progress-bar mode="determinate" [value]="uploadPercent()" />
-      <p class="dropzone-hint">L'indexation démarre une fois l'envoi terminé.</p>
+      <p class="dropzone-hint">{{ t.s().adminIngestStarts }}</p>
     }
   </section>
 
@@ -59,7 +59,7 @@
     <section class="summary">
       <mat-card class="stat">
         <span class="stat-value">{{ status.total_chunks | number }}</span>
-        <span class="stat-label">fragments indexés</span>
+        <span class="stat-label">{{ t.s().adminIndexedFragments }}</span>
       </mat-card>
 
       <mat-card class="stat">
@@ -71,7 +71,7 @@
            encoder built the index. A stale index should be readable at a glance. -->
       <mat-card class="stat encoder">
         <span class="stat-value encoder-name">{{ status.embedding_model }}</span>
-        <span class="stat-label">encodeur</span>
+        <span class="stat-label">{{ t.s().adminEncoder }}</span>
       </mat-card>
     </section>
   }
@@ -79,12 +79,12 @@
   <!-- Documents -------------------------------------------------------------------- -->
   <section class="documents">
     <div class="documents-header">
-      <h2>Documents</h2>
+      <h2>{{ t.s().adminDocuments }}</h2>
       <button
         mat-stroked-button
         (click)="refresh()"
         [disabled]="isBusy()"
-        matTooltip="Rafraîchir"
+        [matTooltip]="t.s().adminRefresh"
       >
         <mat-icon>refresh</mat-icon>
         Rafraîchir
@@ -94,14 +94,14 @@
     @if (loadFailed()) {
       <div class="notice error" role="alert">
         <mat-icon>cloud_off</mat-icon>
-        <span>Impossible de lire l'état du corpus.</span>
+        <span>{{ t.s().adminReadFailed }}</span>
       </div>
     } @else if (documents().length === 0) {
-      <p class="empty">Aucun document. Déposez un PDF pour commencer.</p>
+      <p class="empty">{{ t.s().adminNoDocuments }}</p>
     } @else {
       <table mat-table [dataSource]="documents()" class="documents-table">
         <ng-container matColumnDef="title">
-          <th mat-header-cell *matHeaderCellDef>Fichier</th>
+          <th mat-header-cell *matHeaderCellDef>{{ t.s().adminFile }}</th>
           <td mat-cell *matCellDef="let doc">
             <span class="doc-title">{{ doc.title }}</span>
             @if (doc.error) {
@@ -111,7 +111,7 @@
         </ng-container>
 
         <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>État</th>
+          <th mat-header-cell *matHeaderCellDef>{{ t.s().navStatus }}</th>
           <td mat-cell *matCellDef="let doc">
             <span class="status-pill" [class]="'status-' + doc.status">
               <mat-icon [class.spinning]="doc.status === 'processing'">
@@ -123,7 +123,7 @@
         </ng-container>
 
         <ng-container matColumnDef="progress">
-          <th mat-header-cell *matHeaderCellDef>Progression</th>
+          <th mat-header-cell *matHeaderCellDef>{{ t.s().adminProgress }}</th>
           <td mat-cell *matCellDef="let doc">
             <!-- `progress` is computed server-side: chunks_total is 0 while pending, so
                  dividing here would render NaN% for every freshly uploaded document. -->
@@ -137,14 +137,14 @@
         </ng-container>
 
         <ng-container matColumnDef="chunks">
-          <th mat-header-cell *matHeaderCellDef>Fragments</th>
+          <th mat-header-cell *matHeaderCellDef>{{ t.s().adminFragments }}</th>
           <td mat-cell *matCellDef="let doc" class="numeric">
             {{ doc.chunks_done | number }} / {{ doc.chunks_total | number }}
           </td>
         </ng-container>
 
         <ng-container matColumnDef="indexed">
-          <th mat-header-cell *matHeaderCellDef>Indexé le</th>
+          <th mat-header-cell *matHeaderCellDef>{{ t.s().adminIndexedOn }}</th>
           <td mat-cell *matCellDef="let doc">
             {{ doc.indexed_at ? (doc.indexed_at | date: 'dd/MM/yyyy HH:mm') : '—' }}
           </td>

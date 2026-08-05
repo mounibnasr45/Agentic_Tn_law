@@ -11,10 +11,10 @@
   <mat-sidenav-content class="chat-main">
     @if (isHandset()) {
       <div class="mobile-bar">
-        <button matIconButton (click)="toggleDrawer()" aria-label="Afficher les conversations">
+        <button matIconButton (click)="toggleDrawer()" [attr.aria-label]="t.s().showConversations">
           <mat-icon>menu</mat-icon>
         </button>
-        <span>Conversations</span>
+        <span>{{ t.s().conversations }}</span>
       </div>
     }
 
@@ -39,7 +39,7 @@
               <span class="avatar" [class.avatar-user]="entry.role === 'user'" aria-hidden="true">
                 <mat-icon>{{ entry.role === 'user' ? 'person' : 'gavel' }}</mat-icon>
               </span>
-              <span class="author">{{ entry.role === 'user' ? 'Vous' : 'Agent juridique' }}</span>
+              <span class="author">{{ entry.role === 'user' ? t.s().you : t.s().agentAuthor }}</span>
               <time class="timestamp" [attr.datetime]="entry.createdAt.toISOString()">
                 {{ entry.createdAt | date: 'shortTime' }}
               </time>
@@ -48,8 +48,8 @@
                 <button
                   matIconButton
                   class="copy-button"
-                  [matTooltip]="copiedId() === entry.id ? 'Copié' : 'Copier la réponse'"
-                  [attr.aria-label]="'Copier la réponse'"
+                  [matTooltip]="copiedId() === entry.id ? t.s().copied : t.s().copyAnswer"
+                  [attr.aria-label]="t.s().copyAnswer"
                   (click)="copy(entry)"
                 >
                   <mat-icon>{{ copiedId() === entry.id ? 'check' : 'content_copy' }}</mat-icon>
@@ -63,7 +63,7 @@
                      below, is what makes this wait legible instead of a blank pause. -->
                 <div class="thinking">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                  <span class="thinking-label">consulte les textes…</span>
+                  <span class="thinking-label">{{ t.s().consultingTexts }}</span>
                 </div>
               } @else {
                 <!--
@@ -80,10 +80,10 @@
             @if (entry.failed) {
               <div class="message-error">
                 <mat-icon>error_outline</mat-icon>
-                <span>Non envoyé — rien n'a été enregistré.</span>
+                <span>{{ t.s().notSent }}</span>
                 <button matButton (click)="retry(entry.id)">
                   <mat-icon>refresh</mat-icon>
-                  Réessayer
+                  {{ t.s().retry }}
                 </button>
               </div>
             }
@@ -102,10 +102,10 @@
               <details class="citations" open>
                 <summary>
                   @if (entry.citations.length > 5) {
-                    Top 5 sources citées ({{ entry.citations.length }} au total)
+                    {{ t.s().topSourcesCited(entry.citations.length) }}
                   } @else {
                     {{ entry.citations.length }}
-                    {{ entry.citations.length === 1 ? 'source citée' : 'sources citées' }}
+                    {{ entry.citations.length === 1 ? t.s().sourceCited : t.s().sourcesCited }}
                   }
                 </summary>
                 @for (citation of topCitations(entry); track citation.chunk_id) {
@@ -122,10 +122,9 @@
           @if (!loadingHistory()) {
             <div class="empty-state">
               <mat-icon class="empty-icon">balance</mat-icon>
-              <h2>Posez votre première question</h2>
+              <h2>{{ t.s().askFirstQuestion }}</h2>
               <p>
-                Les réponses sont ancrées dans la Constitution et le Code Pénal tunisiens, et
-                citent les articles sur lesquels elles s'appuient.
+                {{ t.s().emptyStateBody }}
               </p>
               <div class="suggestions">
                 @for (suggestion of suggestions; track suggestion) {
@@ -144,8 +143,7 @@
       <div class="message-column">
         <app-message-composer [disabled]="pending()" (questionSubmitted)="send($event)" />
         <p class="disclaimer">
-          Réponses générées automatiquement à partir des textes indexés — ne constituent pas
-          un conseil juridique.
+          {{ t.s().disclaimer }}
         </p>
       </div>
     </footer>

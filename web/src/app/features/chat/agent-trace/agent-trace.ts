@@ -1,8 +1,9 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AgentTrace, TraceStep } from '../../../core/api/api.types';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * What the agent did to produce the answer above it.
@@ -23,6 +24,8 @@ import { AgentTrace, TraceStep } from '../../../core/api/api.types';
   styleUrl: './agent-trace.scss',
 })
 export class AgentTracePanel {
+  protected readonly t = inject(I18nService);
+
   readonly trace = input.required<AgentTrace>();
   /** The user's original question, shown against the agent's reformulated query. */
   readonly question = input<string>('');

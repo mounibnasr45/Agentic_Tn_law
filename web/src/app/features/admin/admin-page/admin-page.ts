@@ -17,6 +17,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription, timer } from 'rxjs';
 import { AdminApi } from '../../../core/api/admin.api';
 import { AdminDocument, CorpusStatus } from '../../../core/api/api.types';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /** How often to re-read corpus status while an ingest is in flight. */
 const POLL_INTERVAL_MS = 1000;
@@ -49,6 +50,8 @@ const POLL_INTERVAL_MS = 1000;
   styleUrl: './admin-page.scss',
 })
 export class AdminPage {
+  protected readonly t = inject(I18nService);
+
   private readonly api = inject(AdminApi);
   private readonly destroyRef = inject(DestroyRef);
 

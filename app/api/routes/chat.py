@@ -74,7 +74,7 @@ async def ask(
 ) -> AskResponse:
     try:
         answer = await _service(request, session, embedder).ask(
-            user, payload.question, payload.conversation_id
+            user, payload.question, payload.conversation_id, payload.language
         )
     except DomainError as exc:
         # BUG 3: an LLM failure becomes a 502, not a 200 whose body is the exception text.
@@ -115,7 +115,9 @@ async def ask_stream(
         raise to_http_exception(exc) from exc
 
     async def generate() -> AsyncIterator[bytes]:
-        async for event in service.stream_answer(conversation, payload.question):
+        async for event in service.stream_answer(
+            conversation, payload.question, payload.language
+        ):
             if isinstance(event, TraceStep):
                 yield _ndjson_line("step", _trace_step_response(event).model_dump())
             elif isinstance(event, StreamError):

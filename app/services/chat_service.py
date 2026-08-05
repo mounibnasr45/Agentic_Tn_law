@@ -98,6 +98,7 @@ class ChatService:
         user: User,
         question: str,
         conversation_id: uuid.UUID | None = None,
+        language: str = "fr",
     ) -> Answer:
         settings = get_settings()
 
@@ -109,7 +110,9 @@ class ChatService:
         trace = AgentTrace(max_iterations=MAX_ITERATIONS)
         started = time.perf_counter()
 
-        answer, citations, regrounded = await self._run_agent(conversation, question, trace)
+        answer, citations, regrounded = await self._run_agent(
+            conversation, question, trace, language
+        )
         latency_ms = int((time.perf_counter() - started) * 1000)
 
         await self._persist(conversation, question, answer, citations, latency_ms, settings)
@@ -150,7 +153,7 @@ class ChatService:
         return await self._conversation_for(user, conversation_id)
 
     async def stream_answer(
-        self, conversation: Conversation, question: str
+        self, conversation: Conversation, question: str, language: str = "fr"
     ) -> AsyncIterator[TraceStep | Answer | StreamError]:
         """Same work as ask(), but yields each trace step the instant it happens.
 
@@ -172,7 +175,7 @@ class ChatService:
         trace = AgentTrace(max_iterations=MAX_ITERATIONS, live=queue)
         started = time.perf_counter()
 
-        task = asyncio.ensure_future(self._run_agent(conversation, question, trace))
+        task = asyncio.ensure_future(self._run_agent(conversation, question, trace, language))
 
         while not task.done():
             get_next = asyncio.ensure_future(queue.get())
@@ -220,7 +223,7 @@ class ChatService:
         )
 
     async def _run_agent(
-        self, conversation: Conversation, question: str, trace: AgentTrace
+        self, conversation: Conversation, question: str, trace: AgentTrace, language: str = "fr"
     ) -> tuple[str, list[RetrievedChunk], bool]:
         """Invoke the agent and the reflection checkpoint; returns (answer, citations, regrounded).
 
@@ -235,7 +238,7 @@ class ChatService:
         trace_token = current_trace.set(trace)
 
         try:
-            agent = build_agent(self._session, self._embedder, self._checkpointer)
+            agent = build_agent(self._session, self._embedder, self._checkpointer, language)
 
             result = await agent.ainvoke(
                 {"messages": [HumanMessage(content=question)]},

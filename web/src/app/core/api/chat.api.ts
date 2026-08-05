@@ -1,6 +1,7 @@
 import { HttpClient, HttpDownloadProgressEvent, HttpEventType } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { I18nService } from '../i18n/i18n.service';
 import { API_BASE } from './api-base';
 import {
   AskRequest,
@@ -13,6 +14,9 @@ import {
 @Injectable({ providedIn: 'root' })
 export class ChatApi {
   private readonly http = inject(HttpClient);
+  // The agent answers in whichever language the UI is showing — an English
+  // interface replying in French would be a worse experience than either alone.
+  private readonly i18n = inject(I18nService);
 
   /**
    * Runs the agent. This is the slow one — retrieval plus an LLM round trip — so callers
@@ -20,7 +24,11 @@ export class ChatApi {
    * default or a slow answer is turned into a 504.
    */
   ask(question: string, conversationId: string | null): Observable<AskResponse> {
-    const body: AskRequest = { question, conversation_id: conversationId };
+    const body: AskRequest = {
+      question,
+      conversation_id: conversationId,
+      language: this.i18n.current(),
+    };
     return this.http.post<AskResponse>(`${API_BASE}/ask`, body);
   }
 
@@ -39,7 +47,11 @@ export class ChatApi {
    * a TestRequest can `.event()` synthetic DownloadProgress ticks.
    */
   askStream(question: string, conversationId: string | null): Observable<ChatStreamEvent> {
-    const body: AskRequest = { question, conversation_id: conversationId };
+    const body: AskRequest = {
+      question,
+      conversation_id: conversationId,
+      language: this.i18n.current(),
+    };
 
     return new Observable<ChatStreamEvent>((subscriber) => {
       // `consumed` is how much of `partialText` has already been parsed into lines — each

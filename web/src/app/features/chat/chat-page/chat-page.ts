@@ -32,6 +32,7 @@ import { CitationCard } from '../citation-card/citation-card';
 import { ConversationList } from '../conversation-list/conversation-list';
 import { AgentTracePanel } from '../agent-trace/agent-trace';
 import { MessageComposer } from '../message-composer/message-composer';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 interface ChatMessage {
   /**
@@ -94,6 +95,8 @@ const SUGGESTIONS = [
   styleUrl: './chat-page.scss',
 })
 export class ChatPage {
+  protected readonly t = inject(I18nService);
+
   private readonly chatApi = inject(ChatApi);
   private readonly router = inject(Router);
   private readonly location = inject(Location);

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +12,10 @@ class AskRequest(BaseModel):
     # None starts a new thread. Naming an existing one continues it — and the service
     # checks it belongs to the caller, because LangGraph will not.
     conversation_id: uuid.UUID | None = None
+    # Which language the ANSWER is written in; the corpus stays French either way, so
+    # cited articles are still quoted in French. Defaults to French because that is the
+    # language of the texts, and a client that never sends the field keeps working.
+    language: Literal["fr", "en"] = "fr"
 
 
 class TraceResult(BaseModel):

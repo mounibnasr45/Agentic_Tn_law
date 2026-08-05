@@ -1,3 +1,4 @@
+import { UpperCasePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,11 +7,13 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth/auth.service';
 import { AuthStore } from './core/auth/auth.store';
+import { I18nService } from './core/i18n/i18n.service';
 import { ThemeService } from './core/theme/theme.service';
 
 @Component({
   selector: 'app-root',
   imports: [
+    UpperCasePipe,
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
@@ -29,6 +32,7 @@ export class App {
 
   protected readonly store = inject(AuthStore);
   protected readonly theme = inject(ThemeService);
+  protected readonly t = inject(I18nService);
 
   protected readonly themeIcon = computed(() => {
     switch (this.theme.preference()) {
@@ -41,14 +45,17 @@ export class App {
     }
   });
 
+  // Reads t.s() so the tooltip re-computes when the language changes, not only when the
+  // theme does.
   protected readonly themeLabel = computed(() => {
+    const s = this.t.s();
     switch (this.theme.preference()) {
       case 'light':
-        return 'Thème clair — cliquer pour le thème sombre';
+        return s.themeLight;
       case 'dark':
-        return 'Thème sombre — cliquer pour suivre le système';
+        return s.themeDark;
       default:
-        return 'Thème système — cliquer pour le thème clair';
+        return s.themeSystem;
     }
   });
 

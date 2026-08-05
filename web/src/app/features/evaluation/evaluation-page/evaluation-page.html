@@ -1,8 +1,8 @@
 <div class="eval-page">
   <header class="page-header">
-    <h1>Évaluation de la recherche</h1>
+    <h1>{{ t.s().evaluationTitle }}</h1>
     <p class="subtitle">
-      56 questions de référence, quatre métriques de classement, onze configurations
+      56 {{ t.s().goldenQuestions }}, quatre métriques de classement, onze configurations
       comparées. Aucun juge LLM : tout ici est une division, donc reproductible et capable
       de bloquer une build.
     </p>
@@ -11,7 +11,7 @@
   @if (failed()) {
     <div class="notice error" role="alert">
       <mat-icon>cloud_off</mat-icon>
-      <span>Résultats d'évaluation indisponibles.</span>
+      <span>{{ t.s().evaluationUnavailable }}</span>
     </div>
   } @else if (data(); as d) {
     <!-- The headline result: measurement found a bug nothing else could see ----------- -->
@@ -35,7 +35,7 @@
 
       <div class="before-after">
         <div class="ba-col before">
-          <span class="ba-label">Avant</span>
+          <span class="ba-label">{{ t.s().evalBefore }}</span>
           <code>{{ d.encoder_fix.before_model }}</code>
           <span class="ba-limit">{{ d.encoder_fix.before_max_tokens }} tokens</span>
           <dl>
@@ -48,7 +48,7 @@
         <mat-icon class="ba-arrow" aria-hidden="true">arrow_forward</mat-icon>
 
         <div class="ba-col after">
-          <span class="ba-label">Après</span>
+          <span class="ba-label">{{ t.s().evalAfter }}</span>
           <code>{{ d.encoder_fix.after_model }}</code>
           <span class="ba-limit">{{ d.encoder_fix.after_max_tokens }} tokens</span>
           <dl>
@@ -69,15 +69,15 @@
     <section class="summary">
       <mat-card class="stat">
         <span class="stat-value">{{ d.golden_set.questions }}</span>
-        <span class="stat-label">questions de référence</span>
+        <span class="stat-label">{{ t.s().goldenQuestions }}</span>
       </mat-card>
       <mat-card class="stat">
         <span class="stat-value">{{ d.corpus_chunks | number }}</span>
-        <span class="stat-label">fragments indexés</span>
+        <span class="stat-label">{{ t.s().evalIndexedFragments }}</span>
       </mat-card>
       <mat-card class="stat">
         <span class="stat-value">{{ d.arms.length }}</span>
-        <span class="stat-label">configurations comparées</span>
+        <span class="stat-label">{{ t.s().configurationsCompared }}</span>
       </mat-card>
       <mat-card class="stat">
         <!-- The error bar, stated up front rather than buried: one flipped question moves
@@ -89,7 +89,7 @@
 
     <!-- The ablation ---------------------------------------------------------------- -->
     <section class="ablation">
-      <h2>Ablation : quelle configuration gagne ?</h2>
+      <h2>{{ t.s().evalAblationTitle }}</h2>
       <p class="section-note">
         Le poids <em>est</em> la stratégie : 0.0 = dense seul, 1.0 = lexical seul, entre les
         deux = hybride. Un seul axe produit les trois approches habituellement codées
@@ -99,11 +99,11 @@
       <div class="table-scroll">
         <table mat-table [dataSource]="arms()" class="ablation-table">
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>Configuration</th>
+            <th mat-header-cell *matHeaderCellDef>{{ t.s().evalConfiguration }}</th>
             <td mat-cell *matCellDef="let arm">
               <code>{{ arm.name }}</code>
               @if (isDeployed(arm)) {
-                <span class="tag deployed" matTooltip="C'est cette configuration qui est déployée">
+                <span class="tag deployed" [matTooltip]="t.s().evalDeployedTooltip">
                   déployé
                 </span>
               }
@@ -111,7 +111,7 @@
           </ng-container>
 
           <ng-container matColumnDef="arm">
-            <th mat-header-cell *matHeaderCellDef>Bras</th>
+            <th mat-header-cell *matHeaderCellDef>{{ t.s().evalArm }}</th>
             <td mat-cell *matCellDef="let arm">
               <span class="tag arm" [class]="'arm-' + arm.arm">{{ arm.arm }}</span>
             </td>
@@ -126,7 +126,7 @@
             <td mat-cell *matCellDef="let arm" class="num">{{ arm.hit_at_3 | number: '1.3-3' }}</td>
           </ng-container>
           <ng-container matColumnDef="hit5">
-            <th mat-header-cell *matHeaderCellDef matTooltip="La métrique qui bloque la CI">
+            <th mat-header-cell *matHeaderCellDef [matTooltip]="t.s().evalGateTooltip">
               hit@5
             </th>
             <td mat-cell *matCellDef="let arm" class="num strong">
@@ -138,7 +138,7 @@
             <td mat-cell *matCellDef="let arm" class="num">{{ arm.hit_at_10 | number: '1.3-3' }}</td>
           </ng-container>
           <ng-container matColumnDef="mrr">
-            <th mat-header-cell *matHeaderCellDef matTooltip="1/rang — pénalise fortement la profondeur">
+            <th mat-header-cell *matHeaderCellDef [matTooltip]="t.s().evalMrrTooltip">
               MRR
             </th>
             <td mat-cell *matCellDef="let arm" class="num">{{ arm.mrr | number: '1.3-3' }}</td>
@@ -173,33 +173,33 @@
     </section>
 
     <section class="method">
-      <h2>Méthode</h2>
+      <h2>{{ t.s().evalMethod }}</h2>
       <ul>
         <li>
-          <strong>Pertinence au niveau de l'article.</strong> Un article long est réparti sur
+          <strong>{{ t.s().evalArticleRelevance }}</strong> Un article long est réparti sur
           plusieurs fragments ; en retrouver un seul signifie que le bon texte de loi a été
           trouvé. Compter au niveau du fragment pénaliserait nos choix de découpage, pas le
           classement.
         </li>
         <li>
-          <strong>Aucun juge LLM.</strong> Le classement a de vraies métriques. Un juge LLM
+          <strong>{{ t.s().evalNoLlmJudge }}</strong> Le classement a de vraies métriques. Un juge LLM
           serait non déterministe, coûterait de l'argent à chaque exécution et ne pourrait
           pas bloquer une build — on ne fait pas échouer une CI sur un nombre qui fluctue.
         </li>
         <li>
-          <strong>Le seuil de régression tolère 3 points, pas zéro.</strong> Avec
+          <strong>{{ t.s().evalThreshold }}</strong> Avec
           {{ d.golden_set.questions }} questions, une seule qui bascule déplace le hit@5 de
           {{ d.golden_set.one_question_worth | percent: '1.1-1' }}. Un seuil à zéro
           échouerait sur du bruit et serait désactivé en une semaine.
         </li>
         <li>
-          <strong>Limites assumées.</strong> 56 questions, c'est peu : un écart de 0,05 vaut
+          <strong>{{ t.s().evalLimits }}</strong> 56 questions, c'est peu : un écart de 0,05 vaut
           environ trois questions. Les questions à articles multiples, les négations et les
           renvois entre articles ne sont pas représentés.
         </li>
       </ul>
     </section>
   } @else {
-    <p class="empty">Chargement des résultats…</p>
+    <p class="empty">{{ t.s().loadingResults }}</p>
   }
 </div>

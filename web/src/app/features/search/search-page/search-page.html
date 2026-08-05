@@ -1,7 +1,7 @@
 <div class="search-layout">
   <mat-card appearance="outlined" class="search-controls">
     <mat-card-header>
-      <mat-card-title>Explorateur de recherche</mat-card-title>
+      <mat-card-title>{{ t.s().searchTitle }}</mat-card-title>
       <mat-card-subtitle>
         Récupération seule, sans LLM — les extraits bruts que le retriever renvoie
         réellement, avec leurs scores.
@@ -11,18 +11,18 @@
     <mat-card-content>
       <form [formGroup]="form" (ngSubmit)="submit()">
         <mat-form-field appearance="outline" class="query-field">
-          <mat-label>Requête</mat-label>
-          <input matInput formControlName="query" placeholder="Que dit l'article 258 ?" />
+          <mat-label>{{ t.s().query }}</mat-label>
+          <input matInput formControlName="query" [placeholder]="t.s().queryPlaceholder" />
         </mat-form-field>
 
         <div class="knobs">
           <mat-form-field appearance="outline">
-            <mat-label>Nombre de résultats</mat-label>
+            <mat-label>{{ t.s().resultCount }}</mat-label>
             <input matInput type="number" formControlName="topK" min="1" max="50" />
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>Stratégie de fusion</mat-label>
+            <mat-label>{{ t.s().fusionStrategy }}</mat-label>
             <mat-select formControlName="fusion">
               @for (strategy of fusionStrategies; track strategy.value) {
                 <mat-option [value]="strategy.value">{{ strategy.label }}</mat-option>
@@ -47,7 +47,7 @@
             <mat-slider min="0" max="1" step="0.05" discrete>
               <input matSliderThumb formControlName="weightBm25" aria-labelledby="weight-label" />
             </mat-slider>
-            <p class="hint">0.0 = dense seul · 1.0 = lexical seul</p>
+            <p class="hint">{{ t.s().weightHint }}</p>
           </div>
         }
 
@@ -72,7 +72,7 @@
       @for (citation of result.results; track citation.chunk_id) {
         <app-citation-card [citation]="citation" />
       } @empty {
-        <p>Aucun extrait ne correspond à cette requête.</p>
+        <p>{{ t.s().noExtractMatches }}</p>
       }
     </section>
   }

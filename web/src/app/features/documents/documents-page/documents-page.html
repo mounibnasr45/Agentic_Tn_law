@@ -1,9 +1,8 @@
 <section class="documents-page">
   <header class="page-header">
-    <h1>Textes sources</h1>
+    <h1>{{ t.s().documentsTitle }}</h1>
     <p class="subtitle">
-      Les documents que l'agent cite. Consultez-les ici pour vérifier une citation
-      directement à la source.
+      {{ t.s().documentsSubtitle }}
     </p>
   </header>
 
@@ -14,7 +13,7 @@
   @if (failed() && documents().length === 0) {
     <div class="empty-state">
       <mat-icon>error_outline</mat-icon>
-      <p>Impossible de charger les textes sources.</p>
+      <p>{{ t.s().documentsLoadFailed }}</p>
     </div>
   }
 
@@ -23,7 +22,7 @@
       <!-- The list stays visible beside the preview: switching between the penal code and
            the constitution while reading is the whole point, and a dropdown would hide
            the fact that there is more than one text at all. -->
-      <nav class="document-list" aria-label="Textes sources">
+      <nav class="document-list" [attr.aria-label]="t.s().documentsTitle">
         @for (doc of documents(); track doc.id) {
           <button
             type="button"
@@ -37,7 +36,7 @@
               <span class="document-title">{{ doc.title }}</span>
               <span class="document-detail">
                 {{ sizeInMb(doc.size_bytes) | number: '1.1-1' }} Mo ·
-                {{ doc.chunk_count }} passages indexés
+                {{ doc.chunk_count }} {{ t.s().indexedPassages }}
               </span>
             </span>
           </button>
@@ -50,7 +49,7 @@
             <span class="preview-title">{{ doc.title }}</span>
             <button mat-stroked-button (click)="download(doc)">
               <mat-icon>download</mat-icon>
-              Télécharger
+              {{ t.s().download }}
             </button>
           </div>
 
@@ -65,10 +64,10 @@
           } @else if (!previewLoading()) {
             <div class="empty-state">
               <mat-icon>error_outline</mat-icon>
-              <p>Impossible d'afficher ce document.</p>
+              <p>{{ t.s().documentDisplayFailed }}</p>
               <button mat-stroked-button (click)="download(doc)">
                 <mat-icon>download</mat-icon>
-                Télécharger à la place
+                {{ t.s().downloadInstead }}
               </button>
             </div>
           }

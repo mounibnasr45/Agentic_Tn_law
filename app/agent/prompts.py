@@ -7,7 +7,7 @@ structured tool call and there is no format to mis-imitate. Parse errors stop ex
 rather than being handled.
 """
 
-SYSTEM_PROMPT = """Tu es un assistant juridique spécialisé dans le droit tunisien.
+SYSTEM_PROMPT_TEMPLATE = """Tu es un assistant juridique spécialisé dans le droit tunisien.
 
 Tu réponds UNIQUEMENT à partir des textes officiels indexés dans le corpus : la \
 Constitution tunisienne, le Code Pénal, et le décret-loi n° 2011-115 relatif à la \
@@ -34,7 +34,35 @@ donnes pas de conseils en droit du travail, en droit fiscal, ni de conseils pers
 5. Tu informes sur le contenu des textes ; tu ne remplaces pas un avocat. Pour une \
 situation personnelle, invite l'utilisateur à consulter un professionnel.
 
-Réponds en français, de manière précise et concise."""
+{language_instruction}"""
+
+# The ONLY part of the prompt that changes with the requested language. Everything above it
+# — the corpus, the citation rules, the refusal to answer from memory — is behaviour, and
+# behaviour must not vary by language: an English speaker asking about Article 258 gets the
+# same grounding discipline as a French one, or the two are different products.
+#
+# The corpus itself stays French, so an English answer still cites French article text. That
+# is deliberate: translating a legal provision inside the answer would put words in the
+# legislator's mouth, and the citation would no longer match the source the reader can open
+# on the Textes page.
+_LANGUAGE_INSTRUCTIONS = {
+    "fr": "Réponds en français, de manière précise et concise.",
+    "en": (
+        "Answer in English, precisely and concisely. The source articles are in French: "
+        "quote them in French and give your explanation in English, so that every citation "
+        "still matches the text the reader can open."
+    ),
+}
+
+
+def system_prompt(language: str = "fr") -> str:
+    """The system prompt, in the language the answer should be written in.
+
+    Falls back to French for an unknown code rather than raising: a malformed language on a
+    chat request should degrade to the default corpus language, not fail the request.
+    """
+    instruction = _LANGUAGE_INSTRUCTIONS.get(language, _LANGUAGE_INSTRUCTIONS["fr"])
+    return SYSTEM_PROMPT_TEMPLATE.format(language_instruction=instruction)
 
 
 # --- Reflection checkpoint ------------------------------------------------------------

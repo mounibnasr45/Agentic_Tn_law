@@ -104,7 +104,13 @@ function flushStream(httpMock: HttpTestingController, url: string, events: unkno
 }
 
 describe('chat page — agent trace rendering', () => {
-  beforeEach(() => localStorage.clear());
+  // Pin the UI language. These specs assert French copy, and without this the language
+  // is inferred from navigator.language — so the suite would pass on a French machine and
+  // fail on an English one, which is a property of the runner rather than of the code.
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('agentic-tn-law-language', 'fr');
+  });
   afterEach(() => localStorage.clear());
 
   it('renders the trace panel when /api/ask returns a trace', async () => {

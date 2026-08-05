@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { HealthResponse } from '../../../core/api/api.types';
 import { HealthApi } from '../../../core/api/health.api';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * What /api/health reports.
@@ -21,6 +22,8 @@ import { HealthApi } from '../../../core/api/health.api';
   styleUrl: './status-page.scss',
 })
 export class StatusPage {
+  protected readonly t = inject(I18nService);
+
   private readonly healthApi = inject(HealthApi);
 
   protected readonly health = signal<HealthResponse | null>(null);

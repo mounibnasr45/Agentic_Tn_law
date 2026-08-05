@@ -1,10 +1,20 @@
+// .app-content is a ROW flex container, so a page that does not claim its width is sized
+// to its content and leaves the rest of the screen empty — which is exactly what happened
+// here: the PDF sat in a ~400px column beside half a screen of nothing.
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .documents-page {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1.5rem;
-  // Fills the viewport below the toolbar so the iframe has a definite height to fill —
-  // a percentage height on the frame collapses to nothing without this.
+  padding: 1.25rem 1.5rem;
+  // Deliberately NOT the max-width + auto margins the other pages use. Those centre a
+  // column of prose, which is right for reading text and wrong for a document viewer: a
+  // PDF page is legible in proportion to how much width it gets.
   height: calc(100vh - 64px);
   box-sizing: border-box;
 }
@@ -24,10 +34,10 @@
 
 .viewer {
   display: grid;
-  // Fixed sidebar, preview takes the rest. minmax(0, 1fr) rather than 1fr: a grid track
-  // defaults to min-content width, which an iframe refuses to shrink below, so the pane
-  // would otherwise push the layout wider than the screen.
-  grid-template-columns: 20rem minmax(0, 1fr);
+  // Fixed sidebar, preview takes everything else. minmax(0, 1fr) rather than 1fr: a grid
+  // track defaults to min-content width, which an iframe refuses to shrink below, so the
+  // pane would otherwise push the layout wider than the screen.
+  grid-template-columns: 17rem minmax(0, 1fr);
   gap: 1rem;
   flex: 1;
   min-height: 0;

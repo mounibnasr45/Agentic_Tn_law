@@ -5,7 +5,7 @@
     }
 
     <mat-card-header>
-      <mat-card-title>État du service</mat-card-title>
+      <mat-card-title>{{ t.s().statusTitle }}</mat-card-title>
       <mat-card-subtitle>GET /api/health</mat-card-subtitle>
     </mat-card-header>
 
@@ -17,23 +17,23 @@
         </p>
       } @else if (health(); as health) {
         <dl class="status-grid">
-          <dt>Statut</dt>
+          <dt>{{ t.s().status }}</dt>
           <dd>
             <!-- "ok" requires BOTH a reachable database and a non-empty corpus; a running
                  container with nothing ingested reports "degraded". -->
             <span class="badge" [class.badge-ok]="health.status === 'ok'">{{ health.status }}</span>
           </dd>
 
-          <dt>Base de données</dt>
+          <dt>{{ t.s().database }}</dt>
           <dd>{{ health.database ? 'connectée' : 'injoignable' }}</dd>
 
-          <dt>Modèle chargé</dt>
+          <dt>{{ t.s().modelLoaded }}</dt>
           <dd>{{ health.model_loaded ? 'oui' : 'non' }}</dd>
 
-          <dt>Encodeur</dt>
+          <dt>{{ t.s().encoder }}</dt>
           <dd><code>{{ health.embedding_model }}</code></dd>
 
-          <dt>Extraits indexés</dt>
+          <dt>{{ t.s().indexedExtracts }}</dt>
           <dd>{{ health.corpus_chunks }}</dd>
         </dl>
 
@@ -47,7 +47,7 @@
     </mat-card-content>
 
     <mat-card-actions>
-      <button matButton (click)="refresh()" [disabled]="pending()">Actualiser</button>
+      <button matButton (click)="refresh()" [disabled]="pending()">{{ t.s().refresh }}</button>
     </mat-card-actions>
   </mat-card>
 </div>

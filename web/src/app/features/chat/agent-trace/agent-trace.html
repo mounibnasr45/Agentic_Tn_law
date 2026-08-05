@@ -2,14 +2,14 @@
   <details class="trace" open>
     <summary class="trace-summary">
       <mat-icon>account_tree</mat-icon>
-      <span class="trace-title">Raisonnement de l'agent</span>
+      <span class="trace-title">{{ t.s().agentReasoning }}</span>
 
-      <span class="budget" matTooltip="Appels d'outil utilisés sur le plafond configuré">
+      <span class="budget" [matTooltip]="t.s().iterationsTooltip">
         {{ trace().iterations_used }} / {{ trace().max_iterations }} itérations
       </span>
 
       @if (trace().regrounded) {
-        <span class="badge regrounded" matTooltip="Un terme technique n'était pas défini : l'agent a relancé une recherche">
+        <span class="badge regrounded" [matTooltip]="t.s().regroundedTooltip">
           réancrée
         </span>
       }
@@ -37,12 +37,12 @@
                    step happened between them. -->
               @if (question() && question() !== step.query) {
                 <div class="query-row user">
-                  <span class="query-tag">Question</span>
+                  <span class="query-tag">{{ t.s().question }}</span>
                   <code>{{ question() }}</code>
                 </div>
               }
               <div class="query-row agent">
-                <span class="query-tag">Requête de l'agent</span>
+                <span class="query-tag">{{ t.s().agentQuery }}</span>
                 <code>{{ step.query }}</code>
               </div>
             </div>

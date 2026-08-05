@@ -22,7 +22,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.prompts import SYSTEM_PROMPT
+from app.agent.prompts import system_prompt
 from app.agent.tools import build_retrieval_tool
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -71,8 +71,17 @@ async def create_checkpointer(database_url: str) -> tuple[AsyncPostgresSaver, As
     return checkpointer, pool
 
 
-def build_agent(session: AsyncSession, embedder: Embedder, checkpointer: AsyncPostgresSaver):
-    """A stateless agent. All conversation state lives in the checkpointer, keyed by thread."""
+def build_agent(
+    session: AsyncSession,
+    embedder: Embedder,
+    checkpointer: AsyncPostgresSaver,
+    language: str = "fr",
+):
+    """A stateless agent. All conversation state lives in the checkpointer, keyed by thread.
+
+    `language` selects the answer language only — the grounding rules are identical in both,
+    so switching it cannot make the agent looser about citing its sources.
+    """
     settings = get_settings()
 
     llm = ChatOpenAI(
@@ -95,7 +104,7 @@ def build_agent(session: AsyncSession, embedder: Embedder, checkpointer: AsyncPo
     return create_react_agent(
         model=llm,
         tools=[build_retrieval_tool(session, embedder)],
-        prompt=SYSTEM_PROMPT,
+        prompt=system_prompt(language),
         checkpointer=checkpointer,
     )
 

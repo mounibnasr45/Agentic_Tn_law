@@ -11,6 +11,7 @@ import { MatSliderModule } from '@angular/material/slider';
 import { FusionStrategy, SearchResponse } from '../../../core/api/api.types';
 import { SearchApi } from '../../../core/api/search.api';
 import { CitationCard } from '../../chat/citation-card/citation-card';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * Retrieval with no LLM.
@@ -39,6 +40,8 @@ import { CitationCard } from '../../chat/citation-card/citation-card';
   styleUrl: './search-page.scss',
 })
 export class SearchPage {
+  protected readonly t = inject(I18nService);
+
   private readonly fb = inject(FormBuilder);
   private readonly searchApi = inject(SearchApi);
 

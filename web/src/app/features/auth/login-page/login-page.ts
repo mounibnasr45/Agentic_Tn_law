@@ -8,6 +8,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Router } from '@angular/router';
 import { CONSTRAINTS } from '../../../core/api/api.types';
 import { AuthService } from '../../../core/auth/auth.service';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 type Mode = 'login' | 'register';
 
@@ -26,6 +27,8 @@ type Mode = 'login' | 'register';
   styleUrl: './login-page.scss',
 })
 export class LoginPage {
+  protected readonly t = inject(I18nService);
+
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);

@@ -63,6 +63,8 @@ export interface AskRequest {
   question: string;
   /** null starts a new thread; a UUID continues an existing one. */
   conversation_id: string | null;
+  /** Which language the ANSWER is written in. Cited articles stay French either way. */
+  language: 'fr' | 'en';
 }
 
 export interface AskResponse {

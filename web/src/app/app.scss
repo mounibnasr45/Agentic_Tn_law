@@ -41,9 +41,12 @@
   white-space: nowrap;
 }
 
-.brand-flag {
-  width: 1.5rem;
-  height: 1.5rem;
+.brand-mark {
+  // Height-driven, width auto: the emblem is portrait (61x96), so constraining the width
+  // instead would squash it. width/height attributes stay on the tag to reserve the box
+  // before the image loads and stop the toolbar shifting.
+  height: 1.75rem;
+  width: auto;
   flex: 0 0 auto;
 }
 
@@ -94,4 +97,10 @@
   .brand-text {
     display: none;
   }
+}
+
+.lang-toggle {
+  // Fixed width so switching FR<->EN does not shuffle the icons beside it.
+  min-width: 3rem;
+  font-variant-numeric: tabular-nums;
 }

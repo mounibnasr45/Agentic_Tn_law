@@ -1,43 +1,45 @@
 <!-- Lets a keyboard user jump past the navigation straight to the content. -->
-<a class="skip-link" href="#main">Aller au contenu</a>
+<a class="skip-link" href="#main">{{ t.s().skipToContent }}</a>
 
 <mat-toolbar class="app-toolbar">
   <a class="app-brand" routerLink="/chat">
     <!--
-      An inline SVG, NOT the 🇹🇳 emoji. Windows ships no country-flag glyphs, so the emoji
-      renders as the bare letters "TN" — which is exactly what it looked like before.
+      The national coat of arms, not the 🇹🇳 emoji: Windows ships no country-flag glyphs,
+      so the emoji rendered as the bare letters "TN". Served from public/ at 61x96 — the
+      1200x1893 original was 381KB of detail invisible at toolbar size.
     -->
-    <svg class="brand-flag" viewBox="0 0 24 24" role="img" aria-label="Tunisie">
-      <rect width="24" height="24" rx="4" fill="#E70013" />
-      <circle cx="12" cy="12" r="6.4" fill="#fff" />
-      <path
-        d="M15 12a3.4 3.4 0 1 1-2.8-3.35 2.75 2.75 0 1 0 0 6.7A3.4 3.4 0 0 1 15 12z"
-        fill="#E70013"
-      />
-      <path
-        d="m13.05 12 1 .74-.38-1.2 1-.74h-1.24L13.05 9.6l-.38 1.2h-1.24l1 .74-.38 1.2z"
-        fill="#E70013"
-      />
-    </svg>
-    <span class="brand-text">Agent Juridique Tunisien</span>
+    <img class="brand-mark" src="ALOGO.png" alt="" width="61" height="96" />
+    <span class="brand-text">{{ t.s().brand }}</span>
   </a>
 
   @if (store.isAuthenticated()) {
-    <nav class="app-nav" aria-label="Navigation principale">
-      <a mat-button routerLink="/chat" routerLinkActive="active-link">Discussion</a>
-      <a mat-button routerLink="/search" routerLinkActive="active-link">Recherche</a>
-      <a mat-button routerLink="/documents" routerLinkActive="active-link">Textes</a>
-      <a mat-button routerLink="/evaluation" routerLinkActive="active-link">Évaluation</a>
-      <a mat-button routerLink="/status" routerLinkActive="active-link">État</a>
+    <nav class="app-nav" [attr.aria-label]="t.s().mainNavLabel">
+      <a mat-button routerLink="/chat" routerLinkActive="active-link">{{ t.s().navChat }}</a>
+      <a mat-button routerLink="/search" routerLinkActive="active-link">{{ t.s().navSearch }}</a>
+      <a mat-button routerLink="/documents" routerLinkActive="active-link">{{ t.s().navDocuments }}</a>
+      <a mat-button routerLink="/evaluation" routerLinkActive="active-link">{{ t.s().navEvaluation }}</a>
+      <a mat-button routerLink="/status" routerLinkActive="active-link">{{ t.s().navStatus }}</a>
       <!-- Hidden from non-admins as a courtesy, not as a control: the enforcement is
            CurrentAdmin in app/api/deps.py, re-checked on every admin request. -->
       @if (store.user()?.is_admin) {
-        <a mat-button routerLink="/admin" routerLinkActive="active-link">Corpus</a>
+        <a mat-button routerLink="/admin" routerLinkActive="active-link">{{ t.s().navAdmin }}</a>
       }
     </nav>
   }
 
   <span class="app-spacer"></span>
+
+  <!-- The CURRENT language is the label, and clicking switches: a two-language toggle
+       needs no menu, and showing "FR"/"EN" tells you where you are before you click. -->
+  <button
+    matButton
+    class="lang-toggle"
+    [matTooltip]="t.s().languageToggle"
+    [attr.aria-label]="t.s().languageToggle"
+    (click)="t.toggle()"
+  >
+    {{ t.current() | uppercase }}
+  </button>
 
   <button
     matIconButton
@@ -50,7 +52,7 @@
 
   @if (store.user(); as user) {
     <span class="app-user">{{ user.email }}</span>
-    <button matIconButton matTooltip="Se déconnecter" aria-label="Se déconnecter" (click)="logout()">
+    <button matIconButton [matTooltip]="t.s().logout" [attr.aria-label]="t.s().logout" (click)="logout()">
       <mat-icon>logout</mat-icon>
     </button>
   }

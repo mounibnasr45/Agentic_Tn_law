@@ -6,6 +6,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AblationArm, EvaluationResponse } from '../../../core/api/api.types';
 import { EvaluationApi } from '../../../core/api/evaluation.api';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * The retrieval evaluation, published.
@@ -37,6 +38,8 @@ import { EvaluationApi } from '../../../core/api/evaluation.api';
   styleUrl: './evaluation-page.scss',
 })
 export class EvaluationPage {
+  protected readonly t = inject(I18nService);
+
   private readonly api = inject(EvaluationApi);
 
   protected readonly data = signal<EvaluationResponse | null>(null);

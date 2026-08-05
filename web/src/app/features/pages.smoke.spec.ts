@@ -37,7 +37,13 @@ function text(fixture: ComponentFixture<unknown>): string {
 }
 
 describe('page render smoke tests', () => {
-  beforeEach(() => localStorage.clear());
+  // Pin the UI language. These specs assert French copy, and without this the language
+  // is inferred from navigator.language — so the suite would pass on a French machine and
+  // fail on an English one, which is a property of the runner rather than of the code.
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('agentic-tn-law-language', 'fr');
+  });
   afterEach(() => localStorage.clear());
 
   it('LoginPage renders the form and can switch to registration', async () => {
