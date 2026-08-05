@@ -10,15 +10,14 @@
 
       @if (trace().regrounded) {
         <span class="badge regrounded" [matTooltip]="t.s().regroundedTooltip">
-          réancrée
+          {{ t.s().regrounded }}
         </span>
       }
     </summary>
 
     @if (trace().steps.length === 0) {
       <p class="trace-empty">
-        L'agent n'a interrogé aucune source pour cette réponse — probablement une question
-        hors du périmètre indexé.
+        {{ t.s().noSourceConsulted }}
       </p>
     }
 

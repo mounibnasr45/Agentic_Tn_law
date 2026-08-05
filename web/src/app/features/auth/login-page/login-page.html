@@ -7,8 +7,7 @@
     <mat-card-header>
       <mat-card-title>{{ submitLabel() }}</mat-card-title>
       <mat-card-subtitle>
-        Réponses ancrées dans la Constitution et le Code Pénal tunisiens, avec citations
-        vérifiables.
+        {{ t.s().loginTagline }}
       </mat-card-subtitle>
     </mat-card-header>
 
@@ -60,9 +59,9 @@
     <mat-card-actions>
       <button matButton type="button" (click)="toggleMode()" [disabled]="pending()">
         @if (mode() === 'login') {
-          Pas encore de compte ? S'inscrire
+          {{ t.s().noAccountYet }} {{ t.s().signUp }}
         } @else {
-          Déjà un compte ? Se connecter
+          {{ t.s().alreadyHaveAccount }} {{ t.s().signIn }}
         }
       </button>
     </mat-card-actions>

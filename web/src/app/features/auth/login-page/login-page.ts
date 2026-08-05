@@ -38,7 +38,7 @@ export class LoginPage {
   protected readonly pending = signal(false);
 
   protected readonly submitLabel = computed(() =>
-    this.mode() === 'login' ? 'Se connecter' : "S'inscrire",
+    this.mode() === 'login' ? this.t.s().signIn : this.t.s().signUp,
   );
 
   /**

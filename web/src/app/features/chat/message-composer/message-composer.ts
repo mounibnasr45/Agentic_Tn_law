@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { CONSTRAINTS } from '../../../core/api/api.types';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-message-composer',
@@ -29,7 +30,7 @@ import { CONSTRAINTS } from '../../../core/api/api.types';
         subscriptSizing="dynamic"
         hideRequiredMarker
       >
-        <mat-label>Posez votre question juridique…</mat-label>
+        <mat-label>{{ t.s().composerPlaceholder }}</mat-label>
         <textarea
           matInput
           formControlName="question"
@@ -37,7 +38,7 @@ import { CONSTRAINTS } from '../../../core/api/api.types';
           [attr.maxlength]="rules.maxLength"
           (keydown)="onKeydown($event)"
         ></textarea>
-        <mat-hint>Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne</mat-hint>
+        <mat-hint>{{ t.s().composerHint }}</mat-hint>
         <mat-hint align="end">
           {{ form.controls.question.value.length }} / {{ rules.maxLength }}
         </mat-hint>
@@ -50,7 +51,7 @@ import { CONSTRAINTS } from '../../../core/api/api.types';
         [disabled]="form.invalid || disabled()"
       >
         <mat-icon>send</mat-icon>
-        <span class="send-label">Envoyer</span>
+        <span class="send-label">{{ t.s().send }}</span>
       </button>
     </form>
   `,
@@ -75,6 +76,8 @@ import { CONSTRAINTS } from '../../../core/api/api.types';
   `,
 })
 export class MessageComposer {
+  protected readonly t = inject(I18nService);
+
   private readonly fb = inject(FormBuilder);
 
   readonly disabled = input(false);

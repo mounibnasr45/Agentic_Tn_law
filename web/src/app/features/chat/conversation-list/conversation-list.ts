@@ -1,10 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { ConversationSummary } from '../../../core/api/api.types';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * The conversation sidebar. Presentational: it takes a list and renders links.
@@ -21,7 +22,7 @@ import { ConversationSummary } from '../../../core/api/api.types';
     <div class="conversations">
       <a matButton="outlined" routerLink="/chat" class="new-conversation">
         <mat-icon>add</mat-icon>
-        Nouvelle conversation
+        {{ t.s().newConversation }}
       </a>
 
       <mat-nav-list>
@@ -35,7 +36,7 @@ import { ConversationSummary } from '../../../core/api/api.types';
             <span matListItemLine>{{ conversation.updated_at | date: 'short' }}</span>
           </a>
         } @empty {
-          <p class="empty">Aucune conversation pour l'instant.</p>
+          <p class="empty">{{ t.s().noConversationsYet }}</p>
         }
       </mat-nav-list>
     </div>
@@ -65,5 +66,7 @@ import { ConversationSummary } from '../../../core/api/api.types';
   `,
 })
 export class ConversationList {
+  protected readonly t = inject(I18nService);
+
   readonly conversations = input.required<ConversationSummary[]>();
 }

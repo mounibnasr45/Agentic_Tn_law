@@ -1,7 +1,8 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { Citation } from '../../../core/api/api.types';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * One citation, collapsed to its article number and expandable to the source excerpt.
@@ -19,7 +20,7 @@ import { Citation } from '../../../core/api/api.types';
       <mat-expansion-panel-header>
         <mat-panel-title>
           <!-- article_number is null for text outside a numbered article, e.g. the preamble. -->
-          📖 {{ citation().article_number ?? 'Préambule' }}
+          📖 {{ citation().article_number ?? this.t.s().preamble }}
         </mat-panel-title>
         <mat-panel-description>
           {{ citation().source }} · score {{ citation().score | number: '1.3-3' }} · rang
@@ -39,5 +40,7 @@ import { Citation } from '../../../core/api/api.types';
   `,
 })
 export class CitationCard {
+  protected readonly t = inject(I18nService);
+
   readonly citation = input.required<Citation>();
 }

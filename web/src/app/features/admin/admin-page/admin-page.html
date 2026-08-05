@@ -2,8 +2,7 @@
   <header class="page-header">
     <h1>{{ t.s().adminTitle }}</h1>
     <p class="subtitle">
-      Ajoutez un texte de loi au format PDF. Il est découpé par article, encodé, puis
-      indexé — après quoi l'agent peut le citer.
+      {{ t.s().adminIntro }}
     </p>
   </header>
 
@@ -20,11 +19,11 @@
 
     @if (uploadPercent() === null) {
       <p class="dropzone-title">{{ t.s().adminDropzone }}</p>
-      <p class="dropzone-hint">ou</p>
+      <p class="dropzone-hint">{{ t.s().adminOr }}</p>
       <!-- The input is visually hidden but still focusable, so the control stays usable
            from the keyboard — a div with a click handler would not be. -->
       <button mat-flat-button color="primary" (click)="fileInput.click()">
-        Choisir un fichier
+        {{ t.s().adminChooseFile }}
       </button>
       <input
         #fileInput
@@ -64,7 +63,7 @@
 
       <mat-card class="stat">
         <span class="stat-value">{{ status.documents.length }}</span>
-        <span class="stat-label">document(s)</span>
+        <span class="stat-label">{{ t.s().adminDocumentsCount }}</span>
       </mat-card>
 
       <!-- Displayed because bug 13 was invisible precisely BECAUSE nothing showed which
@@ -87,7 +86,7 @@
         [matTooltip]="t.s().adminRefresh"
       >
         <mat-icon>refresh</mat-icon>
-        Rafraîchir
+        {{ t.s().adminRefresh }}
       </button>
     </div>
 

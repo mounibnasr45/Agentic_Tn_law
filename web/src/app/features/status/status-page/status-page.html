@@ -13,7 +13,7 @@
       @if (unreachable()) {
         <p class="unreachable">
           <mat-icon color="warn">cloud_off</mat-icon>
-          API injoignable — aucune réponse du service.
+          {{ t.s().apiUnreachable }}
         </p>
       } @else if (health(); as health) {
         <dl class="status-grid">
@@ -39,7 +39,7 @@
 
         @if (health.corpus_chunks === 0) {
           <p class="warning">
-            Le corpus n'est pas indexé — l'agent ne peut rien citer. Lancez
+            {{ t.s().corpusNotIndexed }}
             <code>python -m app.cli ingest</code>.
           </p>
         }

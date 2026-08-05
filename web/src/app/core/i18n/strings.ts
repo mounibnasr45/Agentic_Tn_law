@@ -34,6 +34,13 @@ export interface Strings {
   emailInvalid: string;
   passwordRequired: string;
 
+  // --- auth (continued) ---
+  signIn: string;
+  signUp: string;
+  noAccountYet: string;
+  alreadyHaveAccount: string;
+  loginTagline: string;
+
   // --- chat ---
   conversations: string;
   showConversations: string;
@@ -53,6 +60,13 @@ export interface Strings {
   sourceCited: string;
   sourcesCited: string;
   topSourcesCited: (total: number) => string;
+  newConversation: string;
+  noConversationsYet: string;
+  composerPlaceholder: string;
+  composerHint: string;
+  send: string;
+  preamble: string;
+  regrounded: string;
 
   // --- agent trace ---
   agentReasoning: string;
@@ -80,6 +94,10 @@ export interface Strings {
   noExtractMatches: string;
   weightHint: string;
 
+  searchSubtitle: string;
+  searchButton: string;
+  serverWeightHint: string;
+
   // --- status ---
   statusTitle: string;
   refresh: string;
@@ -88,6 +106,8 @@ export interface Strings {
   indexedExtracts: string;
   modelLoaded: string;
   status: string;
+  apiUnreachable: string;
+  corpusNotIndexed: string;
 
   // --- evaluation ---
   evaluationTitle: string;
@@ -111,6 +131,10 @@ export interface Strings {
   adminIndexedOn: string;
   adminIndexedFragments: string;
   adminEncoder: string;
+  adminIntro: string;
+  adminOr: string;
+  adminChooseFile: string;
+  adminDocumentsCount: string;
 
   // --- evaluation prose ---
   evalAblationTitle: string;
@@ -127,6 +151,21 @@ export interface Strings {
   evalDeployedTooltip: string;
   evalGateTooltip: string;
   evalMrrTooltip: string;
+
+  evalWhatMeasuring: string;
+  evalTruncationFinding: string;
+  evalCharacters: string;
+  evalOfHit5: string;
+  evalNoiseMargin: string;
+  evalWeightIs1: string;
+  evalWeightIs2: string;
+  evalWeightIsStrategy: string;
+  evalDeployed: string;
+  evalDenseWins: string;
+  evalDenseWinsBody: string;
+  evalArticleLevelBody: string;
+  evalNoJudgeBody: string;
+  evalLimitsBody: string;
 
   // --- errors ---
   sessionExpired: string;
@@ -156,6 +195,13 @@ const fr: Strings = {
   emailInvalid: "Format d'email invalide.",
   passwordRequired: 'Le mot de passe est requis.',
 
+  signIn: 'Se connecter',
+  signUp: "S'inscrire",
+  noAccountYet: 'Pas encore de compte ?',
+  alreadyHaveAccount: 'Déjà un compte ?',
+  loginTagline:
+    'Réponses ancrées dans la Constitution et le Code Pénal tunisiens, avec citations vérifiables.',
+
   conversations: 'Conversations',
   showConversations: 'Afficher les conversations',
   askFirstQuestion: 'Posez votre première question',
@@ -176,6 +222,13 @@ const fr: Strings = {
   sourceCited: 'source citée',
   sourcesCited: 'sources citées',
   topSourcesCited: (total) => `Top 5 sources citées (${total} au total)`,
+  newConversation: 'Nouvelle conversation',
+  noConversationsYet: "Aucune conversation pour l'instant.",
+  composerPlaceholder: 'Posez votre question juridique…',
+  composerHint: 'Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne',
+  send: 'Envoyer',
+  preamble: 'Préambule',
+  regrounded: 'réancrée',
 
   agentReasoning: "Raisonnement de l'agent",
   question: 'Question',
@@ -203,6 +256,12 @@ const fr: Strings = {
   noExtractMatches: 'Aucun extrait ne correspond à cette requête.',
   weightHint: '0.0 = dense seul · 1.0 = lexical seul',
 
+  searchSubtitle:
+    'Récupération seule, sans LLM — les extraits bruts que le retriever renvoie réellement, avec leurs scores.',
+  searchButton: 'Rechercher',
+  serverWeightHint:
+    'Utiliser le poids lexical configuré côté serveur (0.0 — dense seul, le meilleur mesuré)',
+
   statusTitle: 'État du service',
   refresh: 'Actualiser',
   database: 'Base de données',
@@ -210,6 +269,8 @@ const fr: Strings = {
   indexedExtracts: 'Extraits indexés',
   modelLoaded: 'Modèle chargé',
   status: 'Statut',
+  apiUnreachable: 'API injoignable — aucune réponse du service.',
+  corpusNotIndexed: "Le corpus n'est pas indexé — l'agent ne peut rien citer. Lancez",
 
   evaluationTitle: 'Évaluation de la recherche',
   loadingResults: 'Chargement des résultats…',
@@ -231,6 +292,11 @@ const fr: Strings = {
   adminIndexedOn: 'Indexé le',
   adminIndexedFragments: 'fragments indexés',
   adminEncoder: 'encodeur',
+  adminIntro:
+    "Ajoutez un texte de loi au format PDF. Il est découpé par article, encodé, puis indexé — après quoi l'agent peut le citer.",
+  adminOr: 'ou',
+  adminChooseFile: 'Choisir un fichier',
+  adminDocumentsCount: 'document(s)',
 
   evalAblationTitle: 'Ablation : quelle configuration gagne ?',
   evalMethod: 'Méthode',
@@ -246,6 +312,26 @@ const fr: Strings = {
   evalDeployedTooltip: "C'est cette configuration qui est déployée",
   evalGateTooltip: 'La métrique qui bloque la CI',
   evalMrrTooltip: '1/rang — pénalise fortement la profondeur',
+
+  evalWhatMeasuring: 'Ce que la mesure a trouvé',
+  evalTruncationFinding: "L'encodeur tronquait silencieusement 38 % du corpus",
+  evalCharacters: 'caractères',
+  evalOfHit5: 'de hit@5, sans changer une ligne de logique de recherche.',
+  evalNoiseMargin: '= 1 question (marge de bruit)',
+  evalWeightIs1: 'Le poids',
+  evalWeightIs2: 'est',
+  evalWeightIsStrategy:
+    'la stratégie : 0.0 = dense seul, 1.0 = lexical seul, entre les deux = hybride. Un seul axe produit les trois approches habituellement codées séparément.',
+  evalDeployed: 'déployé',
+  evalDenseWins: 'Le dense seul bat toutes les configurations hybrides',
+  evalDenseWinsBody:
+    "C'est donc le dense qui est déployé. Livrer « hybride » parce que le mot sonne mieux serait choisir un système moins bon pour un vocabulaire plus flatteur.",
+  evalArticleLevelBody:
+    "Un article long est réparti sur plusieurs fragments ; en retrouver un seul signifie que le bon texte de loi a été trouvé. Compter au niveau du fragment pénaliserait nos choix de découpage, pas le classement.",
+  evalNoJudgeBody:
+    "Le classement a de vraies métriques. Un juge LLM serait non déterministe, coûterait de l'argent à chaque exécution et ne pourrait pas bloquer une build — on ne fait pas échouer une CI sur un nombre qui fluctue.",
+  evalLimitsBody:
+    "56 questions, c'est peu : un écart de 0,05 vaut environ trois questions. Les questions à articles multiples, les négations et les renvois entre articles ne sont pas représentés.",
 
   sessionExpired: 'Session expirée. Veuillez vous reconnecter.',
   invalidRequest: 'Requête invalide.',
@@ -275,6 +361,13 @@ const en: Strings = {
   emailInvalid: 'Invalid email format.',
   passwordRequired: 'Password is required.',
 
+  signIn: 'Sign in',
+  signUp: 'Sign up',
+  noAccountYet: 'No account yet?',
+  alreadyHaveAccount: 'Already have an account?',
+  loginTagline:
+    'Answers grounded in the Tunisian Constitution and Penal Code, with verifiable citations.',
+
   conversations: 'Conversations',
   showConversations: 'Show conversations',
   askFirstQuestion: 'Ask your first question',
@@ -298,6 +391,13 @@ const en: Strings = {
   sourceCited: 'source cited',
   sourcesCited: 'sources cited',
   topSourcesCited: (total) => `Top 5 sources cited (${total} in total)`,
+  newConversation: 'New conversation',
+  noConversationsYet: 'No conversations yet.',
+  composerPlaceholder: 'Ask your legal question…',
+  composerHint: 'Enter to send · Shift+Enter for a new line',
+  send: 'Send',
+  preamble: 'Preamble',
+  regrounded: 'regrounded',
 
   agentReasoning: 'Agent reasoning',
   question: 'Question',
@@ -324,6 +424,12 @@ const en: Strings = {
   noExtractMatches: 'No extract matches this query.',
   weightHint: '0.0 = dense only · 1.0 = lexical only',
 
+  searchSubtitle:
+    'Retrieval only, no LLM — the raw extracts the retriever actually returns, with their scores.',
+  searchButton: 'Search',
+  serverWeightHint:
+    'Use the lexical weight configured server-side (0.0 — dense only, the best measured)',
+
   statusTitle: 'Service status',
   refresh: 'Refresh',
   database: 'Database',
@@ -331,6 +437,8 @@ const en: Strings = {
   indexedExtracts: 'Indexed extracts',
   modelLoaded: 'Model loaded',
   status: 'Status',
+  apiUnreachable: 'API unreachable — no response from the service.',
+  corpusNotIndexed: 'The corpus is not indexed — the agent has nothing to cite. Run',
 
   evaluationTitle: 'Retrieval evaluation',
   loadingResults: 'Loading results…',
@@ -352,6 +460,11 @@ const en: Strings = {
   adminIndexedOn: 'Indexed on',
   adminIndexedFragments: 'indexed fragments',
   adminEncoder: 'encoder',
+  adminIntro:
+    'Add a legal text as a PDF. It is split by article, encoded, then indexed — after which the agent can cite it.',
+  adminOr: 'or',
+  adminChooseFile: 'Choose a file',
+  adminDocumentsCount: 'document(s)',
 
   evalAblationTitle: 'Ablation: which configuration wins?',
   evalMethod: 'Method',
@@ -367,6 +480,26 @@ const en: Strings = {
   evalDeployedTooltip: 'This is the configuration that is deployed',
   evalGateTooltip: 'The metric that blocks CI',
   evalMrrTooltip: '1/rank — penalises depth heavily',
+
+  evalWhatMeasuring: 'What the measurement found',
+  evalTruncationFinding: 'The encoder was silently truncating 38% of the corpus',
+  evalCharacters: 'characters',
+  evalOfHit5: 'of hit@5, without changing a line of retrieval logic.',
+  evalNoiseMargin: '= 1 question (noise margin)',
+  evalWeightIs1: 'The weight',
+  evalWeightIs2: 'is',
+  evalWeightIsStrategy:
+    'the strategy: 0.0 = dense only, 1.0 = lexical only, in between = hybrid. A single axis produces all three approaches people usually hand-code separately.',
+  evalDeployed: 'deployed',
+  evalDenseWins: 'Dense alone beats every hybrid configuration',
+  evalDenseWinsBody:
+    'So dense is what ships. Shipping "hybrid" because the word sounds better would mean choosing a worse system for a more flattering vocabulary.',
+  evalArticleLevelBody:
+    'A long article is split across several fragments; retrieving any one of them means the right legal text was found. Counting at fragment level would penalise our chunking choices, not the ranking.',
+  evalNoJudgeBody:
+    'Ranking has real metrics. An LLM judge would be non-deterministic, cost money on every run, and could not gate a build — you do not fail CI on a number that fluctuates.',
+  evalLimitsBody:
+    '56 questions is few: a gap of 0.05 is worth about three questions. Multi-article questions, negations and cross-references between articles are not represented.',
 
   sessionExpired: 'Session expired. Please sign in again.',
   invalidRequest: 'Invalid request.',

@@ -3,8 +3,7 @@
     <mat-card-header>
       <mat-card-title>{{ t.s().searchTitle }}</mat-card-title>
       <mat-card-subtitle>
-        Récupération seule, sans LLM — les extraits bruts que le retriever renvoie
-        réellement, avec leurs scores.
+        {{ t.s().searchSubtitle }}
       </mat-card-subtitle>
     </mat-card-header>
 
@@ -32,8 +31,7 @@
         </div>
 
         <mat-checkbox formControlName="useServerWeight">
-          Utiliser le poids lexical configuré côté serveur (0.0 — dense seul, le meilleur
-          mesuré)
+          {{ t.s().serverWeightHint }}
         </mat-checkbox>
 
         @if (!form.controls.useServerWeight.value) {
@@ -52,7 +50,7 @@
         }
 
         <button matButton="filled" type="submit" [disabled]="form.invalid || pending()">
-          Rechercher
+          {{ t.s().searchButton }}
         </button>
       </form>
     </mat-card-content>
