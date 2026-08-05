@@ -7,12 +7,33 @@ import { adminGuard, authGuard, guestGuard } from './core/auth/auth.guards';
  * explorer's JavaScript.
  */
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'chat' },
+  {
+    // guestGuard, not a bare public route: a visitor who is ALREADY signed in has no use
+    // for a marketing page and gets sent straight to /chat, the same rule /login already
+    // follows. Everyone else sees the platform before being asked to sign up for it.
+    path: '',
+    pathMatch: 'full',
+    title: 'Agent Juridique Tunisien',
+    canActivate: [guestGuard],
+    loadComponent: () =>
+      import('./features/landing/landing-page/landing-page').then((m) => m.LandingPage),
+  },
 
   {
     path: 'login',
     title: 'Connexion · Agent Juridique Tunisien',
     canActivate: [guestGuard],
+    loadComponent: () => import('./features/auth/login-page/login-page').then((m) => m.LoginPage),
+  },
+  {
+    // Same component as /login, with `data.mode` bound to its `mode` input via
+    // withComponentInputBinding (see app.config.ts) — so the landing page's "Sign up"
+    // button can link straight into registration rather than the visitor having to find
+    // the toggle themselves.
+    path: 'register',
+    title: "Inscription · Agent Juridique Tunisien",
+    canActivate: [guestGuard],
+    data: { mode: 'register' },
     loadComponent: () => import('./features/auth/login-page/login-page').then((m) => m.LoginPage),
   },
 

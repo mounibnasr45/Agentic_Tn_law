@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -34,11 +41,21 @@ export class LoginPage {
   private readonly router = inject(Router);
 
   protected readonly passwordRules = CONSTRAINTS.password;
-  protected readonly mode = signal<Mode>('login');
   protected readonly pending = signal(false);
 
+  // Bound from the route's `data.mode` (see app.routes.ts's /register entry) via
+  // withComponentInputBinding, so the landing page's "Sign up" button can link straight
+  // into registration instead of the visitor having to land on the login form and find
+  // the toggle themselves. Named `mode` (not aliased) because Angular's style guide
+  // forbids renaming an input — which is exactly why the form's own reactive state below
+  // is `formMode`, not `mode`: the input owns that name, this is only ever read once, at
+  // construction.
+  readonly mode = input<Mode>('login');
+
+  protected readonly formMode = signal<Mode>('login');
+
   protected readonly submitLabel = computed(() =>
-    this.mode() === 'login' ? this.t.s().signIn : this.t.s().signUp,
+    this.formMode() === 'login' ? this.t.s().signIn : this.t.s().signUp,
   );
 
   /**
@@ -50,6 +67,14 @@ export class LoginPage {
     password: ['', [Validators.required, Validators.maxLength(CONSTRAINTS.password.maxLength)]],
   });
 
+  constructor() {
+    // Seeds the form's own state from the route once, at construction — applyMode still
+    // goes through the same validator-switching logic toggleMode uses, so a visitor who
+    // arrives via /register and then clicks "already have an account?" gets exactly the
+    // same form the login page always had.
+    this.applyMode(this.mode());
+  }
+
   /**
    * The 12-character minimum applies to REGISTRATION only.
    *
@@ -58,9 +83,8 @@ export class LoginPage {
    * whose password predates the rule — the client refusing to send a credential the server
    * would have happily accepted.
    */
-  protected toggleMode(): void {
-    const next: Mode = this.mode() === 'login' ? 'register' : 'login';
-    this.mode.set(next);
+  private applyMode(next: Mode): void {
+    this.formMode.set(next);
 
     const password = this.form.controls.password;
     password.setValidators(
@@ -75,6 +99,10 @@ export class LoginPage {
     password.updateValueAndValidity();
   }
 
+  protected toggleMode(): void {
+    this.applyMode(this.formMode() === 'login' ? 'register' : 'login');
+  }
+
   protected submit(): void {
     if (this.form.invalid || this.pending()) {
       return;
@@ -83,7 +111,9 @@ export class LoginPage {
 
     const credentials = this.form.getRawValue();
     const request =
-      this.mode() === 'login' ? this.auth.login(credentials) : this.auth.register(credentials);
+      this.formMode() === 'login'
+        ? this.auth.login(credentials)
+        : this.auth.register(credentials);
 
     request.subscribe({
       next: () => {

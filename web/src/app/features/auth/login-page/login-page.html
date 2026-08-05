@@ -29,10 +29,10 @@
             matInput
             type="password"
             formControlName="password"
-            [attr.autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
+            [attr.autocomplete]="formMode() === 'login' ? 'current-password' : 'new-password'"
             required
           />
-          @if (mode() === 'register') {
+          @if (formMode() === 'register') {
             <mat-hint>{{ passwordRules.minLength }} caractères minimum.</mat-hint>
           }
           @if (form.controls.password.hasError('required') && form.controls.password.touched) {
@@ -58,7 +58,7 @@
 
     <mat-card-actions>
       <button matButton type="button" (click)="toggleMode()" [disabled]="pending()">
-        @if (mode() === 'login') {
+        @if (formMode() === 'login') {
           {{ t.s().noAccountYet }} {{ t.s().signUp }}
         } @else {
           {{ t.s().alreadyHaveAccount }} {{ t.s().signIn }}

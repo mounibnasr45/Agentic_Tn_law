@@ -55,6 +55,11 @@
     <button matIconButton [matTooltip]="t.s().logout" [attr.aria-label]="t.s().logout" (click)="logout()">
       <mat-icon>logout</mat-icon>
     </button>
+  } @else {
+    <!-- Sign up is the raised (filled) button, the more prominent of the two, because
+         acquiring a new account is worth more here than a returning user logging back in. -->
+    <a matButton routerLink="/login">{{ t.s().signIn }}</a>
+    <a matButton="filled" routerLink="/register">{{ t.s().signUp }}</a>
   }
 </mat-toolbar>
 

@@ -34,6 +34,27 @@ export interface Strings {
   emailInvalid: string;
   passwordRequired: string;
 
+  // --- landing ---
+  landingKicker: string;
+  landingTitle: string;
+  landingLede: string;
+  landingCtaPrimary: string;
+  landingCtaSecondary: string;
+  landingFeaturesLabel: string;
+  landingFeature1Title: string;
+  landingFeature1Body: string;
+  landingFeature2Title: string;
+  landingFeature2Body: string;
+  landingFeature3Title: string;
+  landingFeature3Body: string;
+  landingFeature4Title: string;
+  landingFeature4Body: string;
+  landingCorpusTitle: string;
+  landingCorpusLede: string;
+  landingCorpusLoadFailed: string;
+  landingPassagesIndexed: string;
+  landingFooterCta: string;
+
   // --- auth (continued) ---
   signIn: string;
   signUp: string;
@@ -194,6 +215,32 @@ const fr: Strings = {
   emailRequired: "L'email est requis.",
   emailInvalid: "Format d'email invalide.",
   passwordRequired: 'Le mot de passe est requis.',
+
+  landingKicker: 'Agent juridique augmenté par recherche',
+  landingTitle: 'Le droit tunisien, interrogé et cité avec précision',
+  landingLede:
+    "Un agent conversationnel qui répond exclusivement à partir des textes de loi indexés — jamais de mémoire. Recherche hybride (similarité vectorielle et recherche plein texte), citations vérifiables article par article, et qualité de récupération mesurée en continu sur un jeu de questions de référence.",
+  landingCtaPrimary: 'Commencer gratuitement',
+  landingCtaSecondary: "Voir l'agent en action",
+  landingFeaturesLabel: 'Caractéristiques techniques',
+  landingFeature1Title: 'Recherche hybride',
+  landingFeature1Body:
+    'Similarité vectorielle (pgvector) et recherche plein texte (Postgres, ts_rank_cd) fusionnées par pondération ou par rang réciproque — pas un index en mémoire, perdu au moindre redémarrage.',
+  landingFeature2Title: 'Citations vérifiables',
+  landingFeature2Body:
+    "Chaque article cité a réellement été retrouvé par la recherche : une clé étrangère en base l'impose, ce qui exclut structurellement la citation inventée.",
+  landingFeature3Title: 'Qualité mesurée',
+  landingFeature3Body:
+    "98,2 % de hit@5 sur un jeu de 56 questions de référence, recalculé à chaque changement et intégré comme condition de déploiement en CI.",
+  landingFeature4Title: 'Relecture auto-corrective',
+  landingFeature4Body:
+    "Avant de répondre, l'agent relit son brouillon à la recherche de termes juridiques non définis dans les extraits retenus, et relance une recherche ciblée si nécessaire.",
+  landingCorpusTitle: 'Le corpus indexé',
+  landingCorpusLede:
+    'Trois textes de référence du droit tunisien, à jour dans la base de recherche.',
+  landingCorpusLoadFailed: 'Impossible de charger le corpus pour le moment.',
+  landingPassagesIndexed: 'passages indexés',
+  landingFooterCta: 'Créer un compte et poser une première question',
 
   signIn: 'Se connecter',
   signUp: "S'inscrire",
@@ -360,6 +407,31 @@ const en: Strings = {
   emailRequired: 'Email is required.',
   emailInvalid: 'Invalid email format.',
   passwordRequired: 'Password is required.',
+
+  landingKicker: 'Retrieval-augmented legal agent',
+  landingTitle: 'Tunisian law, queried and cited with precision',
+  landingLede:
+    'A conversational agent that answers only from the indexed legal texts — never from memory. Hybrid retrieval (vector similarity and full-text search), article-level verifiable citations, and retrieval quality measured continuously against a golden question set.',
+  landingCtaPrimary: 'Get started for free',
+  landingCtaSecondary: 'See the agent in action',
+  landingFeaturesLabel: 'Technical highlights',
+  landingFeature1Title: 'Hybrid retrieval',
+  landingFeature1Body:
+    'Vector similarity (pgvector) and full-text search (Postgres, ts_rank_cd) fused by weighted score or reciprocal rank — not an in-memory index, gone on the next restart.',
+  landingFeature2Title: 'Verifiable citations',
+  landingFeature2Body:
+    'Every cited article was actually retrieved by the search: a database foreign key enforces it, which rules out a fabricated citation structurally, not by prompting.',
+  landingFeature3Title: 'Measured quality',
+  landingFeature3Body:
+    '98.2% hit@5 on a 56-question golden set, re-measured on every change and gating every deploy in CI.',
+  landingFeature4Title: 'Self-correcting review',
+  landingFeature4Body:
+    'Before answering, the agent re-reads its own draft for legal terms the retrieved excerpts never defined, and runs one more targeted search when it finds one.',
+  landingCorpusTitle: 'The indexed corpus',
+  landingCorpusLede: 'Three reference texts of Tunisian law, live in the search index.',
+  landingCorpusLoadFailed: 'Could not load the corpus right now.',
+  landingPassagesIndexed: 'indexed passages',
+  landingFooterCta: 'Create an account and ask a first question',
 
   signIn: 'Sign in',
   signUp: 'Sign up',

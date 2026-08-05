@@ -1,0 +1,65 @@
+<div class="landing">
+  <section class="hero">
+    <p class="kicker">{{ t.s().landingKicker }}</p>
+    <h1>{{ t.s().landingTitle }}</h1>
+    <p class="lede">{{ t.s().landingLede }}</p>
+
+    <div class="hero-actions">
+      <a matButton="filled" routerLink="/register">{{ t.s().landingCtaPrimary }}</a>
+      <a matButton="outlined" routerLink="/login">{{ t.s().landingCtaSecondary }}</a>
+    </div>
+  </section>
+
+  <section class="features" [attr.aria-label]="t.s().landingFeaturesLabel">
+    <article class="feature">
+      <mat-icon aria-hidden="true">manage_search</mat-icon>
+      <h2>{{ t.s().landingFeature1Title }}</h2>
+      <p>{{ t.s().landingFeature1Body }}</p>
+    </article>
+    <article class="feature">
+      <mat-icon aria-hidden="true">verified</mat-icon>
+      <h2>{{ t.s().landingFeature2Title }}</h2>
+      <p>{{ t.s().landingFeature2Body }}</p>
+    </article>
+    <article class="feature">
+      <mat-icon aria-hidden="true">insights</mat-icon>
+      <h2>{{ t.s().landingFeature3Title }}</h2>
+      <p>{{ t.s().landingFeature3Body }}</p>
+    </article>
+    <article class="feature">
+      <mat-icon aria-hidden="true">fact_check</mat-icon>
+      <h2>{{ t.s().landingFeature4Title }}</h2>
+      <p>{{ t.s().landingFeature4Body }}</p>
+    </article>
+  </section>
+
+  <section class="corpus">
+    <header class="corpus-header">
+      <h2>{{ t.s().landingCorpusTitle }}</h2>
+      <p>{{ t.s().landingCorpusLede }}</p>
+    </header>
+
+    @if (failed()) {
+      <p class="corpus-error">{{ t.s().landingCorpusLoadFailed }}</p>
+    } @else if (!loading()) {
+      <div class="corpus-grid">
+        @for (doc of documents(); track doc.id) {
+          <article class="corpus-card">
+            <mat-icon aria-hidden="true">picture_as_pdf</mat-icon>
+            <div class="corpus-card-body">
+              <h3>{{ doc.title }}</h3>
+              <p>{{ description(doc) }}</p>
+              <span class="corpus-stat">
+                {{ doc.chunk_count | number }} {{ t.s().landingPassagesIndexed }}
+              </span>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="footer-cta">
+    <a matButton="filled" routerLink="/register">{{ t.s().landingFooterCta }}</a>
+  </section>
+</div>

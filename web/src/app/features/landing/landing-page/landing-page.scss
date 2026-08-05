@@ -1,0 +1,172 @@
+// .app-content (the shell's <main>) is a row flex container, same reason documents-page
+// needs this: a page that does not claim its own width and scrolling gets sized to its
+// content instead of filling the viewport.
+:host {
+  display: block;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rem;
+  padding: 4rem 1.5rem 5rem;
+}
+
+.hero {
+  max-width: 44rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.kicker {
+  margin: 0;
+  font: var(--mat-sys-label-large);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mat-sys-primary);
+}
+
+.hero h1 {
+  margin: 0;
+  font: var(--mat-sys-display-small);
+  line-height: 1.15;
+}
+
+.lede {
+  margin: 0;
+  max-width: 38rem;
+  font: var(--mat-sys-body-large);
+  opacity: 0.85;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.features {
+  width: 100%;
+  max-width: 64rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1.25rem;
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-low);
+
+  mat-icon {
+    color: var(--mat-sys-primary);
+  }
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+  }
+
+  p {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    opacity: 0.85;
+  }
+}
+
+.corpus {
+  width: 100%;
+  max-width: 64rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.corpus-header {
+  text-align: center;
+
+  h2 {
+    margin: 0 0 0.35rem;
+    font: var(--mat-sys-headline-small);
+  }
+
+  p {
+    margin: 0;
+    opacity: 0.75;
+  }
+}
+
+.corpus-error {
+  text-align: center;
+  opacity: 0.7;
+}
+
+.corpus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1.25rem;
+}
+
+.corpus-card {
+  display: flex;
+  gap: 0.9rem;
+  padding: 1.25rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+
+  mat-icon {
+    flex: 0 0 auto;
+    color: var(--mat-sys-error);
+  }
+}
+
+.corpus-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+
+  h3 {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+    // Filenames run long ("loi relatif à la liberté de la presse.pdf"); wrapping beats
+    // truncating a title that is also the only exact match against the source PDF.
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    opacity: 0.85;
+  }
+}
+
+.corpus-stat {
+  font: var(--mat-sys-label-medium);
+  opacity: 0.65;
+}
+
+.footer-cta {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .landing {
+    padding: 2.5rem 1rem 3rem;
+    gap: 3rem;
+  }
+}

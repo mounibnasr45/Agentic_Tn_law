@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, SessionDep
 from app.api.schemas.documents import CorpusDocumentOut
@@ -41,13 +42,17 @@ def _resolved_path(document: Document) -> Path:
     return resolved
 
 
-@router.get("", response_model=list[CorpusDocumentOut])
-async def list_documents(user: CurrentUser, session: SessionDep) -> list[CorpusDocumentOut]:
+async def list_indexed_documents(session: AsyncSession) -> list[CorpusDocumentOut]:
     """The corpus, as something to read rather than something to operate.
 
     Only indexed documents: a row that is still processing has no citable content yet, and
     one that failed has nothing behind it at all. Offering either would be offering a
     broken link.
+
+    A plain function, not a route, so both the authenticated in-app viewer and the
+    unauthenticated landing page (app/api/routes/public.py) run the exact same query —
+    the corpus overview a visitor sees before signing up must not be able to drift from
+    what they get after.
     """
     rows = await session.execute(
         select(Document, func.count(Chunk.id))
@@ -78,6 +83,11 @@ async def list_documents(user: CurrentUser, session: SessionDep) -> list[CorpusD
         )
 
     return documents
+
+
+@router.get("", response_model=list[CorpusDocumentOut])
+async def list_documents(user: CurrentUser, session: SessionDep) -> list[CorpusDocumentOut]:
+    return await list_indexed_documents(session)
 
 
 @router.get("/{document_id}/file")
